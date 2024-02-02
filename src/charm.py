@@ -18,7 +18,7 @@ UPF_SNAP_REVISION = "3"
 logger = logging.getLogger(__name__)
 
 
-class SdcoreUpfOperatorCharm(ops.CharmBase):
+class SdcoreUpfCharm(ops.CharmBase):
     """Machine charm for SD-Core User Plane Function."""
 
     def __init__(self, *args):
@@ -55,4 +55,4 @@ class SdcoreUpfOperatorCharm(ops.CharmBase):
 
 
 if __name__ == "__main__":  # pragma: nocover
-    ops.main(SdcoreUpfOperatorCharm)  # type: ignore
+    ops.main(SdcoreUpfCharm)  # type: ignore

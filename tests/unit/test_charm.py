@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import ops
 import ops.testing
-from charm import SdcoreUpfOperatorCharm
+from charm import SdcoreUpfCharm
 from charms.operator_libs_linux.v2.snap import SnapState
 
 
@@ -40,7 +40,7 @@ class MockSnapObject:
 
 class TestCharm(unittest.TestCase):
     def setUp(self):
-        self.harness = ops.testing.Harness(SdcoreUpfOperatorCharm)
+        self.harness = ops.testing.Harness(SdcoreUpfCharm)
         self.addCleanup(self.harness.cleanup)
         self.harness.begin()
 
