@@ -34,7 +34,7 @@ class SdcoreUpfOperatorCharm(ops.CharmBase):
         if not self.unit.is_leader():
             self.unit.status = BlockedStatus("Scaling is not implemented for this charm")
             return
-        self.unit.status = MaintenanceStatus("Installing Vault")
+        self.unit.status = MaintenanceStatus("Installing the UPF")
         self._install_upf_snap()
         self.unit.status = ActiveStatus()
 
