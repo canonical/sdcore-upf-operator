@@ -8,7 +8,6 @@ import logging
 
 import ops
 from charms.operator_libs_linux.v2 import snap
-from machine import Machine
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
 
 UPF_SNAP_NAME = "sdcore-upf"
@@ -24,7 +23,6 @@ class SdcoreUpfOperatorCharm(ops.CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.machine = Machine()
         self.framework.observe(self.on.install, self._configure)
         self.framework.observe(self.on.update_status, self._configure)
         self.framework.observe(self.on.config_changed, self._configure)

@@ -38,31 +38,8 @@ class MockSnapObject:
         self.start_called_with = {"services": services, "enable": enable}
 
 
-class MockMachine:
-    def __init__(self, exists_return_value: bool = False):
-        self.exists_return_value = exists_return_value
-        self.push_called = False
-
-    def exists(self, path: str) -> bool:
-        return self.exists_return_value
-        pass
-
-    def push(self, path: str, source: str) -> None:
-        self.push_called = True
-        self.push_called_with = {"path": path, "source": source}
-
-    def pull(self, path: str) -> str:
-        pass
-
-    def make_dir(self, path: str) -> None:
-        pass
-
-
 class TestCharm(unittest.TestCase):
-    @patch("charm.Machine")
-    def setUp(self, patch_machine):
-        self.mock_machine = MockMachine()
-        patch_machine.return_value = self.mock_machine
+    def setUp(self):
         self.harness = ops.testing.Harness(SdcoreUpfOperatorCharm)
         self.addCleanup(self.harness.cleanup)
         self.harness.begin()
