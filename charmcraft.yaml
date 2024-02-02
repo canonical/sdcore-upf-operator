@@ -1,0 +1,13 @@
+name: sdcore-upf-operator
+type: charm
+title: SD-Core UPF Operator
+summary: Charmed Operator for SD-Core's UPF.
+description: Charmed Operator for SD-Core's UPF.
+
+bases:
+  - build-on:
+    - name: ubuntu
+      channel: "22.04"
+    run-on:
+    - name: ubuntu
+      channel: "22.04"
