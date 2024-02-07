@@ -8,7 +8,7 @@ import logging
 
 import ops
 from charms.operator_libs_linux.v2 import snap
-from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
+from ops.model import ActiveStatus, BlockedStatus
 
 UPF_SNAP_NAME = "sdcore-upf"
 UPF_SNAP_CHANNEL = "latest/edge"
@@ -32,7 +32,6 @@ class SdcoreUpfCharm(ops.CharmBase):
         if not self.unit.is_leader():
             self.unit.status = BlockedStatus("Scaling is not implemented for this charm")
             return
-        self.unit.status = MaintenanceStatus("Installing the UPF")
         self._install_upf_snap()
         self.unit.status = ActiveStatus()
 
