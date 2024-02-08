@@ -170,3 +170,12 @@ class TestCharm(unittest.TestCase):
         self.harness.update_config()
 
         assert not self.mock_machine.push_called
+
+    def test_given_invalid_config_when_config_changed_then_status_is_blocked(self):
+        self.harness.set_leader(True)
+        self.harness.update_config({"core-ip": "not an ip address"})
+
+        self.assertEqual(
+            self.harness.model.unit.status,
+            ops.BlockedStatus("The following configurations are not valid: ['core-ip']"),
+        )

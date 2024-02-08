@@ -39,11 +39,11 @@ class SdcoreUpfCharm(ops.CharmBase):
         if not self.unit.is_leader():
             self.unit.status = BlockedStatus("Scaling is not implemented for this charm")
             return
-        # if invalid_configs := self._get_invalid_configs():
-        #     self.unit.status = BlockedStatus(
-        #         f"The following configurations are not valid: {invalid_configs}"
-        #     )
-        #     return
+        if invalid_configs := self._get_invalid_configs():
+            self.unit.status = BlockedStatus(
+                f"The following configurations are not valid: {invalid_configs}"
+            )
+            return
         self._install_upf_snap()
         self._generate_upf_config_file()
         self.unit.status = ActiveStatus()
