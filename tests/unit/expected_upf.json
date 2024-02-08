@@ -1,9 +1,9 @@
 {
     "access": {
-        "ifname": "access"
+        "ifname": "eth0"
     },
     "core": {
-        "ifname": "core",
+        "ifname": "eth1",
         "ip_masquerade": "192.168.250.3"
     },
     "cpiface": {

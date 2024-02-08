@@ -4,6 +4,7 @@
 
 """Machine charm for SD-Core User Plane Function."""
 
+import ipaddress
 import json
 import logging
 from typing import Optional
@@ -18,11 +19,132 @@ UPF_SNAP_NAME = "sdcore-upf"
 UPF_SNAP_CHANNEL = "latest/edge"
 UPF_SNAP_REVISION = "3"
 UPF_CONFIG_FILE_NAME = "upf.json"
-UPF_ACCESS_INTERFACE_NAME = "access"
-UPF_CORE_INTERFACE_NAME = "core"
 UPF_CONFIG_PATH = "/var/snap/sdcore-upf/common"
 
 logger = logging.getLogger(__name__)
+
+
+class SdcoreUpfCharm(ops.CharmBase):
+    """Machine charm for SD-Core User Plane Function."""
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self._machine = Machine()
+        self.framework.observe(self.on.install, self._configure)
+        self.framework.observe(self.on.update_status, self._configure)
+        self.framework.observe(self.on.config_changed, self._configure)
+
+    def _configure(self, _):
+        """Handle UPF installation."""
+        if not self.unit.is_leader():
+            self.unit.status = BlockedStatus("Scaling is not implemented for this charm")
+            return
+        # if invalid_configs := self._get_invalid_configs():
+        #     self.unit.status = BlockedStatus(
+        #         f"The following configurations are not valid: {invalid_configs}"
+        #     )
+        #     return
+        self._install_upf_snap()
+        self._generate_upf_config_file()
+        self.unit.status = ActiveStatus()
+
+    def _install_upf_snap(self) -> None:
+        """Install the UPF snap in the machine."""
+        try:
+            snap_cache = snap.SnapCache()
+            upf_snap = snap_cache[UPF_SNAP_NAME]
+            upf_snap.ensure(
+                snap.SnapState.Latest,
+                channel=UPF_SNAP_CHANNEL,
+                revision=UPF_SNAP_REVISION,
+                devmode=True,
+            )
+            upf_snap.hold()
+            logger.info("UPF snap installed")
+        except snap.SnapError as e:
+            logger.error("An exception occurred when installing the UPF snap. Reason: %s", str(e))
+            raise e
+
+    def _generate_upf_config_file(self) -> None:
+        """Generate the UPF configuration file."""
+        core_ip_address = self._get_core_network_ip_config()
+        content = render_upf_config_file(
+            upf_hostname=self._get_upf_hostname(),
+            upf_mode=self._get_upf_mode(),
+            access_interface_name=self._get_access_interface_name(),
+            core_interface_name=self._get_core_interface_name(),
+            core_ip_address=core_ip_address.split("/")[0] if core_ip_address else "",
+            dnn=self._get_dnn_config(),
+            pod_share_path=UPF_CONFIG_PATH,
+            enable_hw_checksum=self._get_enable_hw_checksum(),
+        )
+        if not self._upf_config_file_is_written() or not self._upf_config_file_content_matches(
+            content=content
+        ):
+            self._write_upf_config_file(content=content)
+
+    def _upf_config_file_is_written(self) -> bool:
+        """Return whether the UPF config file was written to the workload."""
+        return self._machine.exists(path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}")
+
+    def _upf_config_file_content_matches(self, content: str) -> bool:
+        """Return whether the UPF config file content matches the provided content."""
+        existing_content = self._machine.pull(path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}")
+        try:
+            return json.loads(existing_content) == json.loads(content)
+        except json.JSONDecodeError:
+            return False
+
+    def _write_upf_config_file(self, content: str) -> None:
+        """Write the UPF config file to the workload."""
+        self._machine.push(path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}", source=content)
+        logger.info("Pushed %s config file", UPF_CONFIG_FILE_NAME)
+
+    def _get_invalid_configs(self) -> list[str]:
+        """Return list of invalid configurations."""
+        invalid_configs = []
+        if not self._get_dnn_config():
+            invalid_configs.append("dnn")
+        if not self._core_ip_config_is_valid():
+            invalid_configs.append("core-ip")
+        return invalid_configs
+
+    def _core_ip_config_is_valid(self) -> bool:
+        """Return whether the core-ip config is valid."""
+        core_ip = self._get_core_network_ip_config()
+        if not core_ip:
+            return False
+        return ip_is_valid(core_ip)
+
+    def _get_core_network_ip_config(self) -> str:
+        return self.model.config.get("core-ip", "")
+
+    def _get_upf_hostname(self) -> str:
+        return "0.0.0.0"
+
+    def _get_upf_mode(self) -> str:
+        return "af_packet"
+
+    def _get_dnn_config(self) -> str:
+        return self.model.config.get("dnn", "")
+
+    def _get_enable_hw_checksum(self) -> bool:
+        return bool(self.model.config.get("enable-hw-checksum", False))
+
+    def _get_access_interface_name(self) -> str:
+        return self.model.config.get("access-interface-name", "")
+
+    def _get_core_interface_name(self) -> str:
+        return self.model.config.get("core-interface-name", "")
+
+
+def ip_is_valid(ip_address: str) -> bool:
+    """Check whether given IP config is valid."""
+    try:
+        ipaddress.ip_network(ip_address, strict=False)
+        return True
+    except ValueError:
+        return False
 
 
 def render_upf_config_file(
@@ -60,93 +182,6 @@ def render_upf_config_file(
         hwcksum=str(enable_hw_checksum).lower(),
     )
     return content
-
-
-class SdcoreUpfCharm(ops.CharmBase):
-    """Machine charm for SD-Core User Plane Function."""
-
-    def __init__(self, *args):
-        super().__init__(*args)
-        self._machine = Machine()
-        self.framework.observe(self.on.install, self._configure)
-        self.framework.observe(self.on.update_status, self._configure)
-        self.framework.observe(self.on.config_changed, self._configure)
-
-    def _configure(self, _):
-        """Handle UPF installation."""
-        if not self.unit.is_leader():
-            self.unit.status = BlockedStatus("Scaling is not implemented for this charm")
-            return
-        self._install_upf_snap()
-        self._generate_upf_config_file()
-        self.unit.status = ActiveStatus()
-
-    def _install_upf_snap(self) -> None:
-        """Install the UPF snap in the machine."""
-        try:
-            snap_cache = snap.SnapCache()
-            upf_snap = snap_cache[UPF_SNAP_NAME]
-            upf_snap.ensure(
-                snap.SnapState.Latest,
-                channel=UPF_SNAP_CHANNEL,
-                revision=UPF_SNAP_REVISION,
-                devmode=True,
-            )
-            upf_snap.hold()
-            logger.info("UPF snap installed")
-        except snap.SnapError as e:
-            logger.error("An exception occurred when installing the UPF snap. Reason: %s", str(e))
-            raise e
-
-    def _generate_upf_config_file(self) -> None:
-        """Generate the UPF configuration file."""
-        core_ip_address = self._get_core_network_ip_config()
-        content = render_upf_config_file(
-            upf_hostname=self._get_upf_hostname(),
-            upf_mode=self._get_upf_mode(),
-            access_interface_name=UPF_ACCESS_INTERFACE_NAME,
-            core_interface_name=UPF_CORE_INTERFACE_NAME,
-            core_ip_address=core_ip_address.split("/")[0] if core_ip_address else "",
-            dnn=self._get_dnn_config(),
-            pod_share_path=UPF_CONFIG_PATH,
-            enable_hw_checksum=self._get_enable_hw_checksum(),
-        )
-        if not self._upf_config_file_is_written() or not self._upf_config_file_content_matches(
-            content=content
-        ):
-            self._write_upf_config_file(content=content)
-
-    def _upf_config_file_is_written(self) -> bool:
-        """Return whether the UPF config file was written to the workload."""
-        return self._machine.exists(path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}")
-
-    def _upf_config_file_content_matches(self, content: str) -> bool:
-        """Return whether the UPF config file content matches the provided content."""
-        existing_content = self._machine.pull(path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}")
-        try:
-            return json.loads(existing_content) == json.loads(content)
-        except json.JSONDecodeError:
-            return False
-
-    def _write_upf_config_file(self, content: str) -> None:
-        """Write the UPF config file to the workload."""
-        self._machine.push(path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}", source=content)
-        logger.info("Pushed %s config file", UPF_CONFIG_FILE_NAME)
-
-    def _get_core_network_ip_config(self) -> str:
-        return "192.168.250.3/24"
-
-    def _get_upf_hostname(self) -> str:
-        return "0.0.0.0"
-
-    def _get_upf_mode(self) -> str:
-        return "af_packet"
-
-    def _get_dnn_config(self) -> str:
-        return "internet"
-
-    def _get_enable_hw_checksum(self) -> bool:
-        return True
 
 
 if __name__ == "__main__":  # pragma: nocover
