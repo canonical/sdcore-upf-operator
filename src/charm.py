@@ -17,9 +17,9 @@ from ops.model import ActiveStatus, BlockedStatus
 UPF_SNAP_NAME = "sdcore-upf"
 UPF_SNAP_CHANNEL = "latest/edge"
 UPF_SNAP_REVISION = "3"
-CONFIG_FILE_NAME = "upf.json"
-ACCESS_INTERFACE_NAME = "access"
-CORE_INTERFACE_NAME = "core"
+UPF_CONFIG_FILE_NAME = "upf.json"
+UPF_ACCESS_INTERFACE_NAME = "access"
+UPF_CORE_INTERFACE_NAME = "core"
 UPF_CONFIG_PATH = "/var/snap/sdcore-upf/common"
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ def render_upf_config_file(
         enable_hw_checksum: Whether to enable hardware checksum or not
     """
     jinja2_environment = Environment(loader=FileSystemLoader("src/templates/"))
-    template = jinja2_environment.get_template(f"{CONFIG_FILE_NAME}.j2")
+    template = jinja2_environment.get_template(f"{UPF_CONFIG_FILE_NAME}.j2")
     content = template.render(
         upf_hostname=upf_hostname,
         mode=upf_mode,
@@ -104,8 +104,8 @@ class SdcoreUpfCharm(ops.CharmBase):
         content = render_upf_config_file(
             upf_hostname=self._get_upf_hostname(),
             upf_mode=self._get_upf_mode(),
-            access_interface_name=ACCESS_INTERFACE_NAME,
-            core_interface_name=CORE_INTERFACE_NAME,
+            access_interface_name=UPF_ACCESS_INTERFACE_NAME,
+            core_interface_name=UPF_CORE_INTERFACE_NAME,
             core_ip_address=core_ip_address.split("/")[0] if core_ip_address else "",
             dnn=self._get_dnn_config(),
             pod_share_path=UPF_CONFIG_PATH,
@@ -117,20 +117,12 @@ class SdcoreUpfCharm(ops.CharmBase):
             self._write_upf_config_file(content=content)
 
     def _upf_config_file_is_written(self) -> bool:
-        """Return whether the UPF config file was written to the workload.
-
-        Returns:
-            bool: Whether the UPF config file was written
-        """
-        return self._machine.exists(path=f"{UPF_CONFIG_PATH}/{CONFIG_FILE_NAME}")
+        """Return whether the UPF config file was written to the workload."""
+        return self._machine.exists(path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}")
 
     def _upf_config_file_content_matches(self, content: str) -> bool:
-        """Return whether the UPF config file content matches the provided content.
-
-        Returns:
-            bool: Whether the UPF config file content matches
-        """
-        existing_content = self._machine.pull(path=f"{UPF_CONFIG_PATH}/{CONFIG_FILE_NAME}")
+        """Return whether the UPF config file content matches the provided content."""
+        existing_content = self._machine.pull(path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}")
         try:
             return json.loads(existing_content) == json.loads(content)
         except json.JSONDecodeError:
@@ -138,8 +130,8 @@ class SdcoreUpfCharm(ops.CharmBase):
 
     def _write_upf_config_file(self, content: str) -> None:
         """Write the UPF config file to the workload."""
-        self._machine.push(path=f"{UPF_CONFIG_PATH}/{CONFIG_FILE_NAME}", source=content)
-        logger.info("Pushed %s config file", CONFIG_FILE_NAME)
+        self._machine.push(path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}", source=content)
+        logger.info("Pushed %s config file", UPF_CONFIG_FILE_NAME)
 
     def _get_core_network_ip_config(self) -> str:
         return "192.168.250.3/24"
