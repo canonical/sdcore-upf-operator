@@ -128,12 +128,9 @@ class TestCharm(unittest.TestCase):
 
     @patch("charms.operator_libs_linux.v2.snap.SnapCache")
     def test_given_config_file_not_written_when_config_changed_then_config_file_is_written(
-        self, mock_snap_cache
+        self, _
     ):
         self.harness.set_leader(True)
-        upf_snap = MockSnapObject("sdcore-upf")
-        snap_cache = {"sdcore-upf": upf_snap}
-        mock_snap_cache.return_value = snap_cache
         self.mock_machine.exists_return_value = False
 
         self.harness.update_config()
@@ -147,12 +144,9 @@ class TestCharm(unittest.TestCase):
 
     @patch("charms.operator_libs_linux.v2.snap.SnapCache")
     def test_given_config_file_written_with_different_content_when_config_changed_then_new_config_file_is_written(
-        self, mock_snap_cache
+        self, _
     ):
         self.harness.set_leader(True)
-        upf_snap = MockSnapObject("sdcore-upf")
-        snap_cache = {"sdcore-upf": upf_snap}
-        mock_snap_cache.return_value = snap_cache
         self.mock_machine.exists_return_value = True
         self.mock_machine.pull_return_value = "initial content"
 
@@ -167,12 +161,9 @@ class TestCharm(unittest.TestCase):
 
     @patch("charms.operator_libs_linux.v2.snap.SnapCache")
     def test_given_config_file_written_with_identical_content_when_config_changed_then_new_config_file_not_written(
-        self, mock_snap_cache
+        self, _
     ):
         self.harness.set_leader(True)
-        upf_snap = MockSnapObject("sdcore-upf")
-        snap_cache = {"sdcore-upf": upf_snap}
-        mock_snap_cache.return_value = snap_cache
         self.mock_machine.exists_return_value = True
         self.mock_machine.pull_return_value = read_file("tests/unit/expected_upf.json").strip()
 

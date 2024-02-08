@@ -20,12 +20,12 @@ UPF_SNAP_REVISION = "3"
 CONFIG_FILE_NAME = "upf.json"
 ACCESS_INTERFACE_NAME = "access"
 CORE_INTERFACE_NAME = "core"
-BESSD_CONFIG_PATH = "/var/snap/sdcore-upf/common"
+UPF_CONFIG_PATH = "/var/snap/sdcore-upf/common"
 
 logger = logging.getLogger(__name__)
 
 
-def render_bessd_config_file(
+def render_upf_config_file(
     upf_hostname: str,
     upf_mode: str,
     access_interface_name: str,
@@ -101,14 +101,14 @@ class SdcoreUpfCharm(ops.CharmBase):
     def _generate_upf_config_file(self) -> None:
         """Generate the UPF configuration file."""
         core_ip_address = self._get_core_network_ip_config()
-        content = render_bessd_config_file(
+        content = render_upf_config_file(
             upf_hostname=self._get_upf_hostname(),
             upf_mode=self._get_upf_mode(),
             access_interface_name=ACCESS_INTERFACE_NAME,
             core_interface_name=CORE_INTERFACE_NAME,
             core_ip_address=core_ip_address.split("/")[0] if core_ip_address else "",
             dnn=self._get_dnn_config(),
-            pod_share_path=BESSD_CONFIG_PATH,
+            pod_share_path=UPF_CONFIG_PATH,
             enable_hw_checksum=self._get_enable_hw_checksum(),
         )
         if not self._upf_config_file_is_written() or not self._upf_config_file_content_matches(
@@ -122,7 +122,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         Returns:
             bool: Whether the UPF config file was written
         """
-        return self._machine.exists(path=f"{BESSD_CONFIG_PATH}/{CONFIG_FILE_NAME}")
+        return self._machine.exists(path=f"{UPF_CONFIG_PATH}/{CONFIG_FILE_NAME}")
 
     def _upf_config_file_content_matches(self, content: str) -> bool:
         """Return whether the UPF config file content matches the provided content.
@@ -130,7 +130,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         Returns:
             bool: Whether the UPF config file content matches
         """
-        existing_content = self._machine.pull(path=f"{BESSD_CONFIG_PATH}/{CONFIG_FILE_NAME}")
+        existing_content = self._machine.pull(path=f"{UPF_CONFIG_PATH}/{CONFIG_FILE_NAME}")
         try:
             return json.loads(existing_content) == json.loads(content)
         except json.JSONDecodeError:
@@ -138,7 +138,7 @@ class SdcoreUpfCharm(ops.CharmBase):
 
     def _write_upf_config_file(self, content: str) -> None:
         """Write the UPF config file to the workload."""
-        self._machine.push(path=f"{BESSD_CONFIG_PATH}/{CONFIG_FILE_NAME}", source=content)
+        self._machine.push(path=f"{UPF_CONFIG_PATH}/{CONFIG_FILE_NAME}", source=content)
         logger.info("Pushed %s config file", CONFIG_FILE_NAME)
 
     def _get_core_network_ip_config(self) -> str:
