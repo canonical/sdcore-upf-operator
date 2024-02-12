@@ -12,7 +12,7 @@ from typing import Optional
 import ops
 from charms.operator_libs_linux.v2 import snap
 from jinja2 import Environment, FileSystemLoader
-from machine import Machine
+from machine import ExecError, Machine
 from ops.model import ActiveStatus, BlockedStatus
 
 UPF_SNAP_NAME = "sdcore-upf"
@@ -46,6 +46,7 @@ class SdcoreUpfCharm(ops.CharmBase):
             return
         self._install_upf_snap()
         self._generate_upf_config_file()
+        self._start_upf()
         self.unit.status = ActiveStatus()
 
     def _install_upf_snap(self) -> None:
@@ -64,6 +65,53 @@ class SdcoreUpfCharm(ops.CharmBase):
         except snap.SnapError as e:
             logger.error("An exception occurred when installing the UPF snap. Reason: %s", str(e))
             raise e
+
+    def _start_upf(self) -> None:
+        """Start the UPF service."""
+        if not self._default_route_exists():
+            self._create_default_route()
+        if not self._ran_route_exists():
+            self._create_ran_route()
+        if not self._ip_tables_rule_exists():
+            self._create_ip_tables_rule()
+        self._machine.start_services(services=["routectl", "bessd"])
+
+    def _default_route_exists(self) -> bool:
+        """Return whether the default route already exists."""
+        return False
+
+    def _ran_route_exists(self) -> bool:
+        """Return whether the ran route already exists."""
+        return False
+
+    def _create_default_route(self) -> None:
+        """Create the default route for the core network."""
+        command_str = (
+            f"ip route replace default via {self._get_core_network_gateway_ip_config()} metric 110"
+        )
+        self._machine.exec(command=command_str.split())
+        logger.info("Default core network route created")
+
+    def _create_ran_route(self) -> None:
+        """Create ip route towards gnb-subnet."""
+        command_str = f"ip route replace {self._get_gnb_subnet_config()} via {self._get_access_network_gateway_ip_config()}"
+        self._machine.exec(command=command_str.split())
+        logger.info("Route to gnb-subnet created")
+
+    def _ip_tables_rule_exists(self) -> bool:
+        """Return whether iptables rule already exists using the `--check` parameter."""
+        command_str = "iptables-legacy --check OUTPUT -p icmp --icmp-type port-unreachable -j DROP"
+        try:
+            self._machine.exec(command=command_str.split())
+            return True
+        except ExecError:
+            return False
+
+    def _create_ip_tables_rule(self) -> None:
+        """Create iptable rule in the OUTPUT chain to block ICMP port-unreachable packets."""
+        command_str = "iptables-legacy -I OUTPUT -p icmp --icmp-type port-unreachable -j DROP"
+        self._machine.exec(command=command_str.split())
+        logger.info("Iptables rule for ICMP created")
 
     def _generate_upf_config_file(self) -> None:
         """Generate the UPF configuration file."""
@@ -84,7 +132,7 @@ class SdcoreUpfCharm(ops.CharmBase):
             self._write_upf_config_file(content=content)
 
     def _upf_config_file_is_written(self) -> bool:
-        """Return whether the UPF config file was written to the workload."""
+        """Return whether the UPF config file was written to the machine."""
         return self._machine.exists(path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}")
 
     def _upf_config_file_content_matches(self, content: str) -> bool:
@@ -96,7 +144,7 @@ class SdcoreUpfCharm(ops.CharmBase):
             return False
 
     def _write_upf_config_file(self, content: str) -> None:
-        """Write the UPF config file to the workload."""
+        """Write the UPF config file to the machine."""
         self._machine.push(path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}", source=content)
         logger.info("Pushed %s config file", UPF_CONFIG_FILE_NAME)
 
@@ -118,6 +166,15 @@ class SdcoreUpfCharm(ops.CharmBase):
 
     def _get_core_network_ip_config(self) -> str:
         return self.model.config.get("core-ip", "")
+
+    def _get_core_network_gateway_ip_config(self) -> str:
+        return self.model.config.get("core-gateway-ip", "")
+
+    def _get_gnb_subnet_config(self) -> str:
+        return self.model.config.get("gnb-subnet", "")
+
+    def _get_access_network_gateway_ip_config(self) -> str:
+        return self.model.config.get("access-gateway-ip", "")
 
     def _get_upf_hostname(self) -> str:
         return "0.0.0.0"

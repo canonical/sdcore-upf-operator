@@ -3,7 +3,7 @@
 
 import json
 import unittest
-from typing import List, Optional
+from typing import List, Optional, Sequence
 from unittest.mock import patch
 
 import ops
@@ -70,6 +70,12 @@ class MockMachine:
         return self.pull_return_value
 
     def make_dir(self, path: str) -> None:
+        pass
+
+    def exec(self, command: Sequence[str]):
+        pass
+
+    def start_services(self, services: List[str]):
         pass
 
 
