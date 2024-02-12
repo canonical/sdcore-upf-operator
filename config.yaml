@@ -1,0 +1,22 @@
+options:
+  dnn:
+    type: string
+    default: internet
+    description: Data Network Name (DNN)
+  enable-hw-checksum:
+    type: boolean
+    default: true
+    description: |
+      When enabled, hardware checksum will be used on the network interfaces.
+  access-interface-name:
+    type: string
+    default: eth0
+    description: Name of the UPF's access interface.
+  core-interface-name:
+    type: string
+    default: eth1
+    description: Name of the UPF's core interface.
+  core-ip:
+    type: string
+    default: 192.168.250.3/24
+    description: IP address used by the UPF's Core interface.
