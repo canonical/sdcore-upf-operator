@@ -7,7 +7,7 @@
 import logging
 import os
 import subprocess
-from typing import IO, AnyStr, Dict, Generic, Iterable, Optional, Sequence, TextIO, Tuple
+from typing import IO, AnyStr, Dict, Generic, Optional, Sequence, TextIO, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -107,22 +107,13 @@ class Machine:
             write_file.write(source)
             logger.info("Pushed file %s", path)
 
-    def start_services(
-        self,
-        services: Iterable[str],
-    ):
-        """Start services on the machine."""
-        pass
-
     def exec(
         self,
         command: Sequence[str],
         environment: Optional[Dict[str, str]] = None,
         working_dir: Optional[str] = None,
         timeout: Optional[float] = None,
-        user_id: Optional[int] = None,
         user: Optional[str] = None,
-        group_id: Optional[int] = None,
         group: Optional[str] = None,
         stdin: Optional[TextIO] = None,
         stdout: Optional[TextIO] = None,
@@ -135,9 +126,7 @@ class Machine:
             environment: The environment variables to set
             working_dir: The working directory to execute the command in
             timeout: The timeout for the command
-            user_id: The user id to execute the command as
             user: The user to execute the command as
-            group_id: The group id to execute the command as
             group: The group to execute the command as
             stdin: The standard input for the command
             stdout: The standard output for the command

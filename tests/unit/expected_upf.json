@@ -4,7 +4,7 @@
     },
     "core": {
         "ifname": "eth1",
-        "ip_masquerade": "192.168.250.3"
+        "ip_masquerade": "2.3.4.5"
     },
     "cpiface": {
         "dnn": "internet",

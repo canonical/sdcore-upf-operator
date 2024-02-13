@@ -3,13 +3,20 @@
 
 import json
 import unittest
-from typing import List, Optional, Sequence
+from dataclasses import dataclass
+from typing import AnyStr, List, Optional, Sequence, Tuple
 from unittest.mock import patch
 
 import ops
 import ops.testing
 from charm import SdcoreUpfCharm
 from charms.operator_libs_linux.v2.snap import SnapState
+
+
+@dataclass
+class NetworkInterface:
+    name: str
+    ip: str
 
 
 def read_file(path: str) -> str:
@@ -24,6 +31,45 @@ def read_file(path: str) -> str:
     with open(path, "r") as f:
         content = f.read()
     return content
+
+
+class MockProcessExec:
+    def __init__(self, command: Sequence[str], network_interfaces: List[NetworkInterface] = []):
+        self.command = command
+        self.network_interfaces = network_interfaces
+        self.stdout = "whatever stdout"
+        self.stderr = "whatever stderr"
+
+    def _ip_addr_show_example_output(self, interface_name: str) -> str:
+        """Return an example output of `ip addr show` for the given interface name."""
+        if not self.network_interfaces:
+            return ""
+        interface_ip_address = next(
+            (
+                interface.ip
+                for interface in self.network_interfaces
+                if interface.name == interface_name
+            ),
+            "",
+        )
+        return f"""
+3: {interface_name}: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    link/ether 52:54:00:f4:08:c3 brd ff:ff:ff:ff:ff:ff
+    inet {interface_ip_address} metric 200 brd 192.168.252.255 scope global dynamic enp6s0
+       valid_lft 2057sec preferred_lft 2057sec
+    inet6 fd42:5e03:3e68:286a:5054:ff:fef4:8c3/64 scope global mngtmpaddr noprefixroute
+       valid_lft forever preferred_lft forever
+    inet6 fe80::5054:ff:fef4:8c3/64 scope link
+       valid_lft forever preferred_lft forever
+    """
+
+    def wait_output(self) -> Tuple[AnyStr, Optional[AnyStr]]:
+        """Return the stdout and stderr of the command."""
+        command_str = " ".join(self.command)
+        if "ip addr show" in command_str:
+            interface_name = self.command[-1]
+            return self._ip_addr_show_example_output(interface_name), None
+        return self.stdout, self.stderr
 
 
 class MockSnapObject:
@@ -54,10 +100,16 @@ class MockSnapObject:
 
 
 class MockMachine:
-    def __init__(self, exists_return_value: bool = False, pull_return_value: str = ""):
+    def __init__(
+        self,
+        exists_return_value: bool = False,
+        pull_return_value: str = "",
+        network_interfaces: List[NetworkInterface] = [],
+    ):
         self.exists_return_value = exists_return_value
         self.pull_return_value = pull_return_value
         self.push_called = False
+        self.network_interfaces = network_interfaces
 
     def exists(self, path: str) -> bool:
         return self.exists_return_value
@@ -72,17 +124,19 @@ class MockMachine:
     def make_dir(self, path: str) -> None:
         pass
 
-    def exec(self, command: Sequence[str]):
-        pass
-
-    def start_services(self, services: List[str]):
-        pass
+    def exec(self, command: Sequence[str]) -> MockProcessExec:
+        return MockProcessExec(command=command, network_interfaces=self.network_interfaces)
 
 
 class TestCharm(unittest.TestCase):
     @patch("charm.Machine")
     def setUp(self, patch_machine):
-        self.mock_machine = MockMachine()
+        self.mock_machine = MockMachine(
+            network_interfaces=[
+                NetworkInterface(name="eth0", ip="1.2.3.4/24"),
+                NetworkInterface(name="eth1", ip="2.3.4.5/24"),
+            ]
+        )
         patch_machine.return_value = self.mock_machine
         self.harness = ops.testing.Harness(SdcoreUpfCharm)
         self.addCleanup(self.harness.cleanup)
@@ -176,12 +230,3 @@ class TestCharm(unittest.TestCase):
         self.harness.update_config()
 
         assert not self.mock_machine.push_called
-
-    def test_given_invalid_config_when_config_changed_then_status_is_blocked(self):
-        self.harness.set_leader(True)
-        self.harness.update_config({"core-ip": "not an ip address"})
-
-        self.assertEqual(
-            self.harness.model.unit.status,
-            ops.BlockedStatus("The following configurations are not valid: ['core-ip']"),
-        )
