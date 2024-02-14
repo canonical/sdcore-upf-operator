@@ -112,6 +112,8 @@ class MockMachine:
         self.network_interfaces = network_interfaces
 
     def exists(self, path: str) -> bool:
+        if "/sys/class/net/" in path:
+            return path.split("/")[-1] in [interface.name for interface in self.network_interfaces]
         return self.exists_return_value
 
     def push(self, path: str, source: str) -> None:
@@ -178,6 +180,7 @@ class TestCharm(unittest.TestCase):
     @patch("charms.operator_libs_linux.v2.snap.SnapCache")
     def test_given_unit_is_leader_when_config_changed_then_status_is_active(self, mock_snap_cache):
         self.harness.set_leader(True)
+        self.mock_machine.exists_return_value = True
         upf_snap = MockSnapObject("sdcore-upf")
         snap_cache = {"sdcore-upf": upf_snap}
         mock_snap_cache.return_value = snap_cache
@@ -238,4 +241,17 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(
             self.harness.model.unit.status,
             ops.BlockedStatus("The following configurations are not valid: ['gnb-subnet']"),
+        )
+
+    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    def test_given_network_interfaces_not_valid_when_config_changed_then_status_is_blocked(
+        self, _
+    ):
+        self.mock_machine.network_interfaces = []
+        self.harness.set_leader(True)
+        self.harness.update_config()
+
+        self.assertEqual(
+            self.harness.model.unit.status,
+            ops.BlockedStatus("Network interfaces are not valid: ['eth0', 'eth1']"),
         )
