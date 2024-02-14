@@ -23,7 +23,7 @@ jobs:
 
       - name: Install Multipass
         run: |
-          sudo snap install multipass --classic
+          sudo snap install multipass
           multipass set local.driver=lxd
           sudo snap restart multipass.multipassd
 
