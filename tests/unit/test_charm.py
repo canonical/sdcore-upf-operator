@@ -133,8 +133,8 @@ class TestCharm(unittest.TestCase):
     def setUp(self, patch_machine):
         self.mock_machine = MockMachine(
             network_interfaces=[
-                NetworkInterface(name="eth0", ip="1.2.3.4/24"),
-                NetworkInterface(name="eth1", ip="2.3.4.5/24"),
+                NetworkInterface(name="eth0", ip="192.168.252.3/24"),
+                NetworkInterface(name="eth1", ip="192.168.250.3/24"),
             ]
         )
         patch_machine.return_value = self.mock_machine
@@ -230,3 +230,12 @@ class TestCharm(unittest.TestCase):
         self.harness.update_config()
 
         assert not self.mock_machine.push_called
+
+    def test_given_invalid_config_when_config_changed_then_status_is_blocked(self):
+        self.harness.set_leader(True)
+        self.harness.update_config({"gnb-subnet": "not an ip subnet"})
+
+        self.assertEqual(
+            self.harness.model.unit.status,
+            ops.BlockedStatus("The following configurations are not valid: ['gnb-subnet']"),
+        )

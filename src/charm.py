@@ -107,11 +107,7 @@ class SdcoreUpfCharm(ops.CharmBase):
             self._create_ip_tables_rule()
 
     def _exec_command_in_workload(self, command: str) -> tuple:
-        """Execute command in workload.
-
-        Args:
-            command: Command to execute
-        """
+        """Execute command in workload."""
         process = self._machine.exec(command=command.split())
         return process.wait_output()
 
