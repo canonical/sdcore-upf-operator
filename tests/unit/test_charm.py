@@ -11,12 +11,14 @@ import ops
 import ops.testing
 from charm import SdcoreUpfCharm
 from charms.operator_libs_linux.v2.snap import SnapState
+from machine import ExecError
 
 
 @dataclass
 class NetworkInterface:
     name: str
     ip: str
+    gateway_ip: str
 
 
 def read_file(path: str) -> str:
@@ -34,17 +36,23 @@ def read_file(path: str) -> str:
 
 
 class MockProcessExec:
-    def __init__(self, command: Sequence[str], network_interfaces: List[NetworkInterface] = []):
+    def __init__(
+        self,
+        command: Sequence[str],
+        network_interfaces: List[NetworkInterface] = [],
+        ip_tables_rule_exists: bool = False,
+    ):
         self.command = command
         self.network_interfaces = network_interfaces
+        self.ip_tables_rule_exists = ip_tables_rule_exists
         self.stdout = "whatever stdout"
         self.stderr = "whatever stderr"
 
-    def _ip_addr_show_example_output(self, interface_name: str) -> str:
-        """Return an example output of `ip addr show` for the given interface name."""
+    def _get_interface_ip_address(self, interface_name: str) -> str:
+        """Return the IP address of the given interface name."""
         if not self.network_interfaces:
             return ""
-        interface_ip_address = next(
+        return next(
             (
                 interface.ip
                 for interface in self.network_interfaces
@@ -52,6 +60,25 @@ class MockProcessExec:
             ),
             "",
         )
+
+    def _get_interface_default_gateway(self, interface_name: str) -> str:
+        """Return the default gateway of the given interface name."""
+        if not self.network_interfaces:
+            return ""
+        return next(
+            (
+                interface.gateway_ip
+                for interface in self.network_interfaces
+                if interface.name == interface_name
+            ),
+            "",
+        )
+
+    def _ip_addr_show_example_output(self, interface_name: str) -> str:
+        """Return an example output of `ip addr show` for the given interface name."""
+        if not self.network_interfaces:
+            return ""
+        interface_ip_address = self._get_interface_ip_address(interface_name)
         return f"""
 3: {interface_name}: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
     link/ether 52:54:00:f4:08:c3 brd ff:ff:ff:ff:ff:ff
@@ -63,12 +90,34 @@ class MockProcessExec:
        valid_lft forever preferred_lft forever
     """
 
+    def _ip_route_show_example_output(self, interface_name: str) -> str:
+        """Return an example output of `ip route show default`."""
+        if not self.network_interfaces:
+            return ""
+        interface_ip_address = self._get_interface_ip_address(interface_name)
+        interface_default_gateway = self._get_interface_default_gateway(interface_name)
+        return f"default via {interface_default_gateway} proto dhcp src {interface_ip_address} metric 600"
+
     def wait_output(self) -> Tuple[AnyStr, Optional[AnyStr]]:
         """Return the stdout and stderr of the command."""
         command_str = " ".join(self.command)
         if "ip addr show" in command_str:
             interface_name = self.command[-1]
             return self._ip_addr_show_example_output(interface_name), None
+        if "ip route show default 0.0.0.0/0 dev" in command_str:
+            interface_name = self.command[-1]
+            return self._ip_route_show_example_output(interface_name), None
+        if (
+            "iptables-legacy --check OUTPUT -p icmp --icmp-type port-unreachable -j DROP"
+            in command_str
+        ):
+            if not self.ip_tables_rule_exists:
+                raise ExecError(
+                    command=self.command,
+                    exit_code=1,
+                    stdout="",
+                    stderr="iptables: Bad rule (does a matching rule exist in that chain?).\n",
+                )
         return self.stdout, self.stderr
 
 
@@ -105,11 +154,17 @@ class MockMachine:
         exists_return_value: bool = False,
         pull_return_value: str = "",
         network_interfaces: List[NetworkInterface] = [],
+        ip_tables_rule_exists: bool = False,
     ):
         self.exists_return_value = exists_return_value
         self.pull_return_value = pull_return_value
         self.push_called = False
+        self.push_called_with = None
         self.network_interfaces = network_interfaces
+        self.ip_tables_rule_exists = ip_tables_rule_exists
+        self.exec_calls = []
+        self.exec_called = False
+        self.exec_called_with = None
 
     def exists(self, path: str) -> bool:
         if "/sys/class/net/" in path:
@@ -127,7 +182,14 @@ class MockMachine:
         pass
 
     def exec(self, command: Sequence[str]) -> MockProcessExec:
-        return MockProcessExec(command=command, network_interfaces=self.network_interfaces)
+        self.exec_called = True
+        self.exec_called_with = command
+        self.exec_calls.append(command)
+        return MockProcessExec(
+            command=command,
+            network_interfaces=self.network_interfaces,
+            ip_tables_rule_exists=self.ip_tables_rule_exists,
+        )
 
 
 class TestCharm(unittest.TestCase):
@@ -135,8 +197,8 @@ class TestCharm(unittest.TestCase):
     def setUp(self, patch_machine):
         self.mock_machine = MockMachine(
             network_interfaces=[
-                NetworkInterface(name="eth0", ip="192.168.252.3/24"),
-                NetworkInterface(name="eth1", ip="192.168.250.3/24"),
+                NetworkInterface(name="eth0", ip="192.168.252.3/24", gateway_ip="192.168.252.1"),
+                NetworkInterface(name="eth1", ip="192.168.250.3/24", gateway_ip="192.168.250.1"),
             ]
         )
         patch_machine.return_value = self.mock_machine
@@ -180,7 +242,6 @@ class TestCharm(unittest.TestCase):
     @patch("charms.operator_libs_linux.v2.snap.SnapCache")
     def test_given_unit_is_leader_when_config_changed_then_status_is_active(self, mock_snap_cache):
         self.harness.set_leader(True)
-        self.mock_machine.exists_return_value = True
         upf_snap = MockSnapObject("sdcore-upf")
         snap_cache = {"sdcore-upf": upf_snap}
         mock_snap_cache.return_value = snap_cache
@@ -254,4 +315,46 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(
             self.harness.model.unit.status,
             ops.BlockedStatus("Network interfaces are not valid: ['eth0', 'eth1']"),
+        )
+
+    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    def test_given_network_interfaces_valid_when_config_changed_then_routes_are_created(self, _):
+        gnb_subnet = "192.168.251.0/24"
+        self.harness.set_leader(True)
+        self.harness.update_config(
+            {
+                "gnb-subnet": gnb_subnet,
+                "core-interface-name": "eth0",
+                "access-interface-name": "eth1",
+            }
+        )
+
+        assert self.mock_machine.exec_called
+        core_interface_gateway_ip = next(
+            (
+                interface.gateway_ip
+                for interface in self.mock_machine.network_interfaces
+                if interface.name == "eth0"
+            ),
+            "",
+        )
+        access_interface_gateway_ip = next(
+            (
+                interface.gateway_ip
+                for interface in self.mock_machine.network_interfaces
+                if interface.name == "eth1"
+            ),
+            "",
+        )
+        assert (
+            f"ip route replace default via {core_interface_gateway_ip} metric 110".split(" ")
+            in self.mock_machine.exec_calls
+        )
+        assert (
+            f"ip route replace {gnb_subnet} via {access_interface_gateway_ip}".split(" ")
+            in self.mock_machine.exec_calls
+        )
+        assert (
+            "iptables-legacy -I OUTPUT -p icmp --icmp-type port-unreachable -j DROP".split(" ")
+            in self.mock_machine.exec_calls
         )
