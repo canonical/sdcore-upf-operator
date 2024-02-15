@@ -8,8 +8,6 @@ Charmed Operator for SD-Core's User Plane Function (UPF). For more information, 
 
 The SD-Core UPF charm should be deployed on a machine with two network interfaces. The `access-interface-name` and `core-interface-name` configuration options should be set to the names of the network interfaces that are connected to the access and core networks, respectively. Those interfaces should have IPv4 addresses assigned to them.
 
-### Create a Machine with Multipass
-
 Set Multipass to use LXD as the driver:
 
 ```shell
@@ -33,14 +31,13 @@ Add the Machine to the Juju controller:
 
 ```shell
 sudo cp /var/snap/multipass/common/data/multipassd/ssh-keys/id_rsa .
-chown $USER:$USER id_rsa
-juju add-machine ssh:ubuntu@10.166.2.25 --private-key id_rsa
+sudo chown $USER:$USER id_rsa
+juju add-machine ssh:ubuntu@<UPF machine IP address> --private-key id_rsa
 ```
-
-### Deploy the SD-Core UPF Operator
 
 ```shell
 juju deploy sdcore-upf \
   --config access-interface-name=enp6s0 \
-  --config core-interface-name=enp7s0
+  --config core-interface-name=enp7s0 \
+  --to <machine number>
 ```

@@ -35,6 +35,32 @@ class MockProcessExec:
         self.stdout = "whatever stdout"
         self.stderr = "whatever stderr"
 
+    def wait_output(self) -> Tuple[AnyStr, Optional[AnyStr]]:
+        """Return the stdout and stderr of the command."""
+        command_str = " ".join(self.command)
+        if "ip addr show" in command_str:
+            interface_name = self.command[-1]
+            return self._ip_addr_show_example_output(interface_name), None
+        if "ip route show default 0.0.0.0/0 dev" in command_str:
+            interface_name = self.command[-1]
+            return self._ip_route_show_example_output(interface_name), None
+        if "ip route show default" in command_str:
+            return self._default_route_example_output(), None
+        if "ip route show" in command_str:
+            return self._ran_route_example_output(), None
+        if (
+            "iptables-legacy --check OUTPUT -p icmp --icmp-type port-unreachable -j DROP"
+            in command_str
+        ):
+            if not self.ip_tables_rule_exists:
+                raise ExecError(
+                    command=self.command,
+                    exit_code=1,
+                    stdout="",
+                    stderr="iptables: Bad rule (does a matching rule exist in that chain?).\n",
+                )
+        return self.stdout, self.stderr
+
     def _get_interface_ip_address(self, interface_name: str) -> str:
         """Return the IP address of the given interface name."""
         if not self.network_interfaces:
@@ -105,48 +131,16 @@ class MockProcessExec:
             return f"{self.gnb_subnet} via {interface_default_gateway}"
         return ""
 
-    def wait_output(self) -> Tuple[AnyStr, Optional[AnyStr]]:
-        """Return the stdout and stderr of the command."""
-        command_str = " ".join(self.command)
-        if "ip addr show" in command_str:
-            interface_name = self.command[-1]
-            return self._ip_addr_show_example_output(interface_name), None
-        if "ip route show default 0.0.0.0/0 dev" in command_str:
-            interface_name = self.command[-1]
-            return self._ip_route_show_example_output(interface_name), None
-        if "ip route show default" in command_str:
-            return self._default_route_example_output(), None
-        if "ip route show" in command_str:
-            return self._ran_route_example_output(), None
-        if (
-            "iptables-legacy --check OUTPUT -p icmp --icmp-type port-unreachable -j DROP"
-            in command_str
-        ):
-            if not self.ip_tables_rule_exists:
-                raise ExecError(
-                    command=self.command,
-                    exit_code=1,
-                    stdout="",
-                    stderr="iptables: Bad rule (does a matching rule exist in that chain?).\n",
-                )
-        return self.stdout, self.stderr
-
 
 class MockMachine:
     def __init__(
         self,
-        exists_return_value: bool = False,
-        pull_return_value: str = "",
         network_interfaces: List[NetworkInterface] = [],
         gnb_subnet: str = "",
         ip_tables_rule_exists: bool = False,
         default_route_created: bool = False,
         ran_route_created: bool = False,
     ):
-        self.exists_return_value = exists_return_value
-        self.pull_return_value = pull_return_value
-        self.push_called = False
-        self.push_called_with = None
         self.network_interfaces = network_interfaces
         self.gnb_subnet = gnb_subnet
         self.ip_tables_rule_exists = ip_tables_rule_exists
@@ -159,17 +153,7 @@ class MockMachine:
     def exists(self, path: str) -> bool:
         if "/sys/class/net/" in path:
             return path.split("/")[-1] in [interface.name for interface in self.network_interfaces]
-        return self.exists_return_value
-
-    def push(self, path: str, source: str) -> None:
-        self.push_called = True
-        self.push_called_with = {"path": path, "source": source}
-
-    def pull(self, path: str) -> str:
-        return self.pull_return_value
-
-    def make_dir(self, path: str) -> None:
-        pass
+        return True
 
     def exec(self, command: Sequence[str]) -> MockProcessExec:
         self.exec_called = True
@@ -188,7 +172,6 @@ class MockMachine:
 class TestNetwork(unittest.TestCase):
 
     def setUp(self):
-
         self.access_interface_name = "eth0"
         self.core_interface_name = "eth1"
         self.access_interface_ip = "192.168.252.3/24"
@@ -221,7 +204,6 @@ class TestNetwork(unittest.TestCase):
     def test_given_valid_interfaces_when_get_invalid_network_interfaces_then_return_empty_list(
         self,
     ):
-
         invalid_network_interfaces = self.network.get_invalid_network_interfaces()
 
         self.assertEqual(invalid_network_interfaces, [])
