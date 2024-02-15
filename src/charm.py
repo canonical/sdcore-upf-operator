@@ -4,16 +4,15 @@
 
 """Machine charm for SD-Core User Plane Function."""
 
-import ipaddress
 import json
 import logging
-import re
-from typing import List, Optional
+from typing import Optional
 
 import ops
 from charms.operator_libs_linux.v2 import snap
 from jinja2 import Environment, FileSystemLoader
-from machine import ExecError, Machine
+from machine import Machine
+from network import Network, ip_is_valid
 from ops.model import ActiveStatus, BlockedStatus
 
 UPF_SNAP_NAME = "sdcore-upf"
@@ -31,6 +30,12 @@ class SdcoreUpfCharm(ops.CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
         self._machine = Machine()
+        self._network = Network(
+            machine=self._machine,
+            access_interface_name=self._get_access_interface_name(),
+            core_interface_name=self._get_core_interface_name(),
+            gnb_subnet=self._get_gnb_subnet_config(),
+        )
         self.framework.observe(self.on.install, self._configure)
         self.framework.observe(self.on.update_status, self._configure)
         self.framework.observe(self.on.config_changed, self._configure)
@@ -45,48 +50,15 @@ class SdcoreUpfCharm(ops.CharmBase):
                 f"The following configurations are not valid: {invalid_configs}"
             )
             return
-        if invalid_network_interfaces := self._get_invalid_network_interfaces():
+        if invalid_network_interfaces := self._network.get_invalid_network_interfaces():
             self.unit.status = BlockedStatus(
                 f"Network interfaces are not valid: {invalid_network_interfaces}"
             )
             return
-        self._configure_network()
+        self._network.configure()
         self._install_upf_snap()
         self._generate_upf_config_file()
         self.unit.status = ActiveStatus()
-
-    def _get_invalid_network_interfaces(self) -> List[str]:
-        """Return whether the network interfaces are valid."""
-        invalid_network_interfaces = []
-        access_interface_name = self._get_access_interface_name()
-        core_interface_name = self._get_core_interface_name()
-        if not access_interface_name:
-            raise ValueError("Access network interface name is empty")
-        if not core_interface_name:
-            raise ValueError("Core network interface name is empty")
-        if not self._interface_is_valid(access_interface_name):
-            invalid_network_interfaces.append(access_interface_name)
-            logger.warning("Access network interface %s is not valid", access_interface_name)
-        if not self._interface_is_valid(core_interface_name):
-            invalid_network_interfaces.append(core_interface_name)
-            logger.warning("Core network interface %s is not valid", core_interface_name)
-        return invalid_network_interfaces
-
-    def _interface_is_valid(self, interface_name: str) -> bool:
-        """Return whether the given network interface is valid."""
-        if not self._interface_exists(interface_name):
-            logger.warning("Interface %s does not exist", interface_name)
-            return False
-        ip_address = self._get_interface_ip_address(interface_name)
-        if not ip_address:
-            logger.warning("IP address for interface %s is empty", interface_name)
-            return False
-        if not ip_is_valid(ip_address):
-            logger.warning(
-                "IP address %s for interface %s is not valid", ip_address, interface_name
-            )
-            return False
-        return True
 
     def _install_upf_snap(self) -> None:
         """Install the UPF snap in the workload."""
@@ -105,106 +77,12 @@ class SdcoreUpfCharm(ops.CharmBase):
             logger.error("An exception occurred when installing the UPF snap. Reason: %s", str(e))
             raise e
 
-    def _configure_network(self) -> None:
-        """Configure the network for the UPF service."""
-        if not self._default_route_exists():
-            self._create_default_route()
-        if not self._ran_route_exists():
-            self._create_ran_route()
-        if not self._ip_tables_rule_exists():
-            self._create_ip_tables_rule()
-
-    def _exec_command_in_workload(self, command: str) -> tuple:
-        """Execute command in workload."""
-        process = self._machine.exec(command=command.split())
-        return process.wait_output()
-
-    def _default_route_exists(self) -> bool:
-        """Return whether the default route already exists."""
-        stdout, stderr = self._exec_command_in_workload(command="ip route show default")
-        if stderr:
-            logger.warning("Failed to get default route")
-            return False
-        return f"default via {self._get_core_network_gateway_ip_config()}" in stdout
-
-    def _ran_route_exists(self) -> bool:
-        """Return whether the ran route already exists."""
-        stdout, stderr = self._exec_command_in_workload(command="ip route show")
-        if stderr:
-            logger.warning("Failed to get ran route")
-            return False
-        return (
-            f"{self._get_gnb_subnet_config()} via {self._get_access_network_gateway_ip_config()}"
-            in stdout
-        )
-
-    def _create_default_route(self) -> None:
-        """Create the default route for the core network."""
-        self._exec_command_in_workload(
-            f"ip route replace default via {self._get_core_network_gateway_ip_config()} metric 110"
-        )
-        logger.info("Default core network route created")
-
-    def _create_ran_route(self) -> None:
-        """Create ip route towards gnb-subnet."""
-        self._exec_command_in_workload(
-            command=f"ip route replace {self._get_gnb_subnet_config()} via {self._get_access_network_gateway_ip_config()}"
-        )
-        logger.info("Route to gnb-subnet created")
-
-    def _ip_tables_rule_exists(self) -> bool:
-        """Return whether iptables rule already exists using the `--check` parameter."""
-        try:
-            self._exec_command_in_workload(
-                command="iptables-legacy --check OUTPUT -p icmp --icmp-type port-unreachable -j DROP"
-            )
-            return True
-        except ExecError:
-            return False
-
-    def _create_ip_tables_rule(self) -> None:
-        """Create iptable rule in the OUTPUT chain to block ICMP port-unreachable packets."""
-        self._exec_command_in_workload(
-            command="iptables-legacy -I OUTPUT -p icmp --icmp-type port-unreachable -j DROP"
-        )
-        logger.info("Iptables rule for ICMP created")
-
-    def _interface_exists(self, interface_name: str) -> bool:
-        """Return whether the given network interface exists."""
-        return self._machine.exists(path=f"/sys/class/net/{interface_name}")
-
-    def _get_interface_ip_address(self, interface_name: str) -> str:
-        """Get the IP address of the given network interface."""
-        try:
-            stdout, _ = self._exec_command_in_workload(command=f"ip addr show {interface_name}")
-        except ExecError:
-            logger.warning("Failed to get IP address for interface %s", interface_name)
-            return ""
-        match = re.search(r"inet (\d+\.\d+\.\d+\.\d+)/", stdout)
-        if match:
-            return match.group(1)
-        return ""
-
-    def _get_interface_gateway_ip_address(self, interface_name: str) -> str:
-        """Get the gateway IP address of the given network interface."""
-        try:
-            stdout, _ = self._exec_command_in_workload(
-                command=f"ip route show default 0.0.0.0/0 dev {interface_name}"
-            )
-        except ExecError:
-            logger.warning("Failed to get gateway IP address for interface %s", interface_name)
-            return ""
-        match = re.search(r"default via (\d+\.\d+\.\d+\.\d+)", stdout)
-        if match:
-            return match.group(1)
-        return ""
-
     def _generate_upf_config_file(self) -> None:
         """Generate the UPF configuration file."""
         core_interface_name = self._get_core_interface_name()
         if not core_interface_name:
             raise ValueError("Core network interface name is empty")
-        core_ip_address = self._get_interface_ip_address(core_interface_name)
+        core_ip_address = self._network.get_interface_ip_address(core_interface_name)
         if not core_ip_address:
             raise ValueError("Core network IP address is not valid")
         content = render_upf_config_file(
@@ -251,20 +129,8 @@ class SdcoreUpfCharm(ops.CharmBase):
             invalid_configs.append("gnb-subnet")
         return invalid_configs
 
-    def _get_core_network_gateway_ip_config(self) -> str:
-        core_interface_name = self._get_core_interface_name()
-        if not core_interface_name:
-            return ""
-        return self._get_interface_gateway_ip_address(core_interface_name)
-
     def _get_gnb_subnet_config(self) -> str:
         return self.model.config.get("gnb-subnet", "")
-
-    def _get_access_network_gateway_ip_config(self) -> str:
-        access_interface_name = self._get_access_interface_name()
-        if not access_interface_name:
-            return ""
-        return self._get_interface_gateway_ip_address(access_interface_name)
 
     def _get_upf_hostname(self) -> str:
         return "0.0.0.0"
@@ -283,15 +149,6 @@ class SdcoreUpfCharm(ops.CharmBase):
 
     def _get_core_interface_name(self) -> str:
         return self.model.config.get("core-interface-name", "")
-
-
-def ip_is_valid(ip_address: str) -> bool:
-    """Check whether given IP config is valid."""
-    try:
-        ipaddress.ip_network(ip_address, strict=False)
-        return True
-    except ValueError:
-        return False
 
 
 def render_upf_config_file(
