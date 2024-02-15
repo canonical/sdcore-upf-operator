@@ -1,13 +1,11 @@
 # Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-# import json
 import unittest
-
 from dataclasses import dataclass
 from typing import AnyStr, List, Optional, Sequence, Tuple
 
-
+from machine import ExecError
 from network import Network
 
 
@@ -167,196 +165,58 @@ class TestNetwork(unittest.TestCase):
             gnb_subnet=self.gnb_subnet,
         )
 
-    def test_given_when_get_invalid_network_interfaces_then_return_empty_list(self):
+    def test_given_valid_interfaces_when_get_invalid_network_interfaces_then_return_empty_list(
+        self,
+    ):
 
         invalid_network_interfaces = self.network.get_invalid_network_interfaces()
 
         self.assertEqual(invalid_network_interfaces, [])
 
+    def test_given_invalid_interfaces_when_get_invalid_network_interfaces_then_return_invalid_interfaces(
+        self,
+    ):
+        self.mock_machine.network_interfaces = []
+        self.network = Network(
+            machine=self.mock_machine,
+            access_interface_name=self.access_interface_name,
+            core_interface_name=self.core_interface_name,
+            gnb_subnet=self.gnb_subnet,
+        )
 
-# @dataclass
-# class NetworkInterface:
-#     name: str
-#     ip: str
-#     gateway_ip: str
+        invalid_network_interfaces = self.network.get_invalid_network_interfaces()
 
+        self.assertEqual(invalid_network_interfaces, ["eth0", "eth1"])
 
-# def read_file(path: str) -> str:
-#     """Read a file and returns as a string.
+    def test_given_rules_dont_exist_when_configure_then_routes_are_created(self):
 
-#     Args:
-#         path (str): path to the file.
+        self.network.configure()
 
-#     Returns:
-#         str: content of the file.
-#     """
-#     with open(path, "r") as f:
-#         content = f.read()
-#     return content
-
-# class TestCharm(unittest.TestCase):
-#     @patch("charm.Machine")
-#     def setUp(self, patch_machine):
-#         self.mock_machine = MockMachine(
-#             network_interfaces=[
-#                 NetworkInterface(name="eth0", ip="192.168.252.3/24", gateway_ip="192.168.252.1"),
-#                 NetworkInterface(name="eth1", ip="192.168.250.3/24", gateway_ip="192.168.250.1"),
-#             ]
-#         )
-#         patch_machine.return_value = self.mock_machine
-#         self.harness = ops.testing.Harness(SdcoreUpfCharm)
-#         self.addCleanup(self.harness.cleanup)
-#         self.harness.begin()
-
-#     def test_given_unit_is_not_leader_when_config_changed_then_status_is_blocked(self):
-#         self.harness.set_leader(False)
-
-#         self.harness.update_config()
-
-#         self.assertEqual(
-#             self.harness.model.unit.status,
-#             ops.BlockedStatus("Scaling is not implemented for this charm"),
-#         )
-
-#     @patch("charms.operator_libs_linux.v2.snap.SnapCache")
-#     def test_given_upf_snap_uninstalled_when_configure_then_upf_snap_installed(
-#         self, mock_snap_cache
-#     ):
-#         self.harness.set_leader(is_leader=True)
-#         upf_snap = MockSnapObject("upf")
-#         snap_cache = {"sdcore-upf": upf_snap}
-#         mock_snap_cache.return_value = snap_cache
-
-#         self.harness.charm.on.install.emit()
-
-#         mock_snap_cache.assert_called_with()
-#         assert upf_snap.ensure_called
-#         assert upf_snap.ensure_called_with == (
-#             SnapState.Latest,
-#             False,
-#             True,
-#             "latest/edge",
-#             "",
-#             "3",
-#         )
-#         assert upf_snap.hold_called
-
-#     @patch("charms.operator_libs_linux.v2.snap.SnapCache")
-#     def test_given_unit_is_leader_when_config_changed_then_status_is_active(self, mock_snap_cache):
-#         self.harness.set_leader(True)
-#         upf_snap = MockSnapObject("sdcore-upf")
-#         snap_cache = {"sdcore-upf": upf_snap}
-#         mock_snap_cache.return_value = snap_cache
-
-#         self.harness.update_config()
-
-#         self.assertEqual(self.harness.model.unit.status, ops.ActiveStatus())
-
-#     @patch("charms.operator_libs_linux.v2.snap.SnapCache")
-#     def test_given_config_file_not_written_when_config_changed_then_config_file_is_written(
-#         self, _
-#     ):
-#         self.harness.set_leader(True)
-#         self.mock_machine.exists_return_value = False
-
-#         self.harness.update_config()
-
-#         expected_config_file_content = read_file("tests/unit/expected_upf.json").strip()
-#         assert self.mock_machine.push_called
-#         assert json.loads(expected_config_file_content) == json.loads(
-#             self.mock_machine.push_called_with["source"]
-#         )
-#         assert self.mock_machine.push_called_with["path"] == "/var/snap/sdcore-upf/common/upf.json"
-
-#     @patch("charms.operator_libs_linux.v2.snap.SnapCache")
-#     def test_given_config_file_written_with_different_content_when_config_changed_then_new_config_file_is_written(
-#         self, _
-#     ):
-#         self.harness.set_leader(True)
-#         self.mock_machine.exists_return_value = True
-#         self.mock_machine.pull_return_value = "initial content"
-
-#         self.harness.update_config()
-
-#         expected_config_file_content = read_file("tests/unit/expected_upf.json").strip()
-#         assert self.mock_machine.push_called
-#         assert json.loads(expected_config_file_content) == json.loads(
-#             self.mock_machine.push_called_with["source"]
-#         )
-#         assert self.mock_machine.push_called_with["path"] == "/var/snap/sdcore-upf/common/upf.json"
-
-#     @patch("charms.operator_libs_linux.v2.snap.SnapCache")
-#     def test_given_config_file_written_with_identical_content_when_config_changed_then_new_config_file_not_written(
-#         self, _
-#     ):
-#         self.harness.set_leader(True)
-#         self.mock_machine.exists_return_value = True
-#         self.mock_machine.pull_return_value = read_file("tests/unit/expected_upf.json").strip()
-
-#         self.harness.update_config()
-
-#         assert not self.mock_machine.push_called
-
-#     def test_given_invalid_config_when_config_changed_then_status_is_blocked(self):
-#         self.harness.set_leader(True)
-#         self.harness.update_config({"gnb-subnet": "not an ip subnet"})
-
-#         self.assertEqual(
-#             self.harness.model.unit.status,
-#             ops.BlockedStatus("The following configurations are not valid: ['gnb-subnet']"),
-#         )
-
-#     @patch("charms.operator_libs_linux.v2.snap.SnapCache")
-#     def test_given_network_interfaces_not_valid_when_config_changed_then_status_is_blocked(
-#         self, _
-#     ):
-#         self.mock_machine.network_interfaces = []
-#         self.harness.set_leader(True)
-#         self.harness.update_config()
-
-#         self.assertEqual(
-#             self.harness.model.unit.status,
-#             ops.BlockedStatus("Network interfaces are not valid: ['eth0', 'eth1']"),
-#         )
-
-#     @patch("charms.operator_libs_linux.v2.snap.SnapCache")
-#     def test_given_network_interfaces_valid_when_config_changed_then_routes_are_created(self, _):
-#         gnb_subnet = "192.168.251.0/24"
-#         self.harness.set_leader(True)
-#         self.harness.update_config(
-#             {
-#                 "gnb-subnet": gnb_subnet,
-#                 "core-interface-name": "eth0",
-#                 "access-interface-name": "eth1",
-#             }
-#         )
-
-#         assert self.mock_machine.exec_called
-#         core_interface_gateway_ip = next(
-#             (
-#                 interface.gateway_ip
-#                 for interface in self.mock_machine.network_interfaces
-#                 if interface.name == "eth0"
-#             ),
-#             "",
-#         )
-#         access_interface_gateway_ip = next(
-#             (
-#                 interface.gateway_ip
-#                 for interface in self.mock_machine.network_interfaces
-#                 if interface.name == "eth1"
-#             ),
-#             "",
-#         )
-#         assert (
-#             f"ip route replace default via {core_interface_gateway_ip} metric 110".split(" ")
-#             in self.mock_machine.exec_calls
-#         )
-#         assert (
-#             f"ip route replace {gnb_subnet} via {access_interface_gateway_ip}".split(" ")
-#             in self.mock_machine.exec_calls
-#         )
-#         assert (
-#             "iptables-legacy -I OUTPUT -p icmp --icmp-type port-unreachable -j DROP".split(" ")
-#             in self.mock_machine.exec_calls
-#         )
+        core_interface_gateway_ip = next(
+            (
+                interface.gateway_ip
+                for interface in self.mock_machine.network_interfaces
+                if interface.name == self.core_interface_name
+            ),
+            "",
+        )
+        access_interface_gateway_ip = next(
+            (
+                interface.gateway_ip
+                for interface in self.mock_machine.network_interfaces
+                if interface.name == self.access_interface_name
+            ),
+            "",
+        )
+        self.assertIn(
+            f"ip route replace default via {core_interface_gateway_ip} metric 110".split(" "),
+            self.mock_machine.exec_calls,
+        )
+        self.assertIn(
+            f"ip route replace {self.gnb_subnet} via {access_interface_gateway_ip}".split(" "),
+            self.mock_machine.exec_calls,
+        )
+        self.assertIn(
+            "iptables-legacy -I OUTPUT -p icmp --icmp-type port-unreachable -j DROP".split(" "),
+            self.mock_machine.exec_calls,
+        )
