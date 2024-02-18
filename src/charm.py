@@ -151,6 +151,15 @@ class SdcoreUpfCharm(ops.CharmBase):
         return self.model.config.get("core-interface-name", "")
 
 
+def ip_is_valid(ip_address: str) -> bool:
+    """Check whether given IP config is valid."""
+    try:
+        ipaddress.ip_network(ip_address, strict=False)
+        return True
+    except ValueError:
+        return False
+
+
 def render_upf_config_file(
     upf_hostname: str,
     upf_mode: str,
@@ -186,15 +195,6 @@ def render_upf_config_file(
         hwcksum=str(enable_hw_checksum).lower(),
     )
     return content
-
-
-def ip_is_valid(ip_address: str) -> bool:
-    """Check whether given IP config is valid."""
-    try:
-        ipaddress.ip_network(ip_address, strict=False)
-        return True
-    except ValueError:
-        return False
 
 
 if __name__ == "__main__":  # pragma: nocover
