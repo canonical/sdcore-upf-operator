@@ -3,6 +3,7 @@
 
 import json
 import unittest
+from typing import List, Optional
 from unittest.mock import MagicMock, patch
 
 import ops
@@ -25,26 +26,63 @@ def read_file(path: str) -> str:
     return content
 
 
+class MockSnapObject:
+    def __init__(self, name):
+        self.name = name
+        self.ensure_called = False
+        self.ensure_called_with = None
+        self.hold_called = False
+
+    def ensure(
+        self,
+        state,
+        classic: Optional[bool] = False,
+        devmode: Optional[bool] = False,
+        channel: Optional[str] = "",
+        cohort: Optional[str] = "",
+        revision: Optional[str] = None,
+    ):
+        self.ensure_called = True
+        self.ensure_called_with = (state, classic, devmode, channel, cohort, revision)
+
+    def hold(self):
+        self.hold_called = True
+
+    def start(self, services: Optional[List[str]] = None, enable: Optional[bool] = False) -> None:
+        self.start_called = True
+        self.start_called_with = {"services": services, "enable": enable}
+
+
+class MockMachine:
+    def __init__(self, exists_return_value: bool = False, pull_return_value: str = ""):
+        self.exists_return_value = exists_return_value
+        self.pull_return_value = pull_return_value
+        self.push_called = False
+
+    def exists(self, path: str) -> bool:
+        return self.exists_return_value
+
+    def push(self, path: str, source: str) -> None:
+        self.push_called = True
+        self.push_called_with = {"path": path, "source": source}
+
+    def pull(self, path: str) -> str:
+        return self.pull_return_value
+
+    def make_dir(self, path: str) -> None:
+        pass
+
+
 class TestCharm(unittest.TestCase):
-
-    def setUp(self):
-        self.patch_machine = MagicMock()
-        self.patch_network = MagicMock()
-
-        self.patch_machine.exists.return_value = False
-        self.patch_machine.pull.return_value = "file content"
-        self.patch_network.get_invalid_network_interfaces.return_value = []
-        self.patch_network.get_interface_ip_address.return_value = "192.168.250.3"
-
-        self.machine_patch = patch("charm.Machine", return_value=self.patch_machine)
-        self.network_patch = patch("charm.UPFNetwork", return_value=self.patch_network)
-
-        self.machine_patch.start()
-        self.network_patch.start()
-
-        self.addCleanup(self.machine_patch.stop)
-        self.addCleanup(self.network_patch.stop)
-
+    @patch("charm.UPFNetwork")
+    @patch("charm.Machine")
+    def setUp(self, patch_machine, patch_network):
+        self.mock_machine = MockMachine()
+        patch_machine.return_value = self.mock_machine
+        self.mock_upf_network = MagicMock()
+        self.mock_upf_network.get_invalid_network_interfaces.return_value = []
+        self.mock_upf_network.get_interface_ip_address.return_value = "192.168.250.3"
+        patch_network.return_value = self.mock_upf_network
         self.harness = ops.testing.Harness(SdcoreUpfCharm)
         self.addCleanup(self.harness.cleanup)
         self.harness.begin()
@@ -60,24 +98,34 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("charms.operator_libs_linux.v2.snap.SnapCache")
-    def test_install_upf_snap(self, mock_snap_cache):
-        mock_upf_snap = MagicMock()
+    def test_given_upf_snap_uninstalled_when_configure_then_upf_snap_installed(
+        self, mock_snap_cache
+    ):
+        self.harness.set_leader(is_leader=True)
+        upf_snap = MockSnapObject("upf")
+        snap_cache = {"sdcore-upf": upf_snap}
+        mock_snap_cache.return_value = snap_cache
 
-        mock_snap_cache.return_value = {"sdcore-upf": mock_upf_snap}
+        self.harness.charm.on.install.emit()
 
-        self.harness.charm._install_upf_snap()
-
-        mock_upf_snap.ensure.assert_called_once_with(
+        mock_snap_cache.assert_called_with()
+        assert upf_snap.ensure_called
+        assert upf_snap.ensure_called_with == (
             SnapState.Latest,
-            channel="latest/edge",
-            revision="3",
-            devmode=True,
+            False,
+            True,
+            "latest/edge",
+            "",
+            "3",
         )
-        mock_upf_snap.hold.assert_called_once()
+        assert upf_snap.hold_called
 
     @patch("charms.operator_libs_linux.v2.snap.SnapCache")
     def test_given_unit_is_leader_when_config_changed_then_status_is_active(self, mock_snap_cache):
         self.harness.set_leader(True)
+        upf_snap = MockSnapObject("sdcore-upf")
+        snap_cache = {"sdcore-upf": upf_snap}
+        mock_snap_cache.return_value = snap_cache
 
         self.harness.update_config()
 
@@ -88,49 +136,49 @@ class TestCharm(unittest.TestCase):
         self, _
     ):
         self.harness.set_leader(True)
+        self.mock_machine.exists_return_value = False
 
         self.harness.update_config()
 
-        expected_config_file_content = read_file("tests/unit/expected_upf.json")
-        assert (
-            "/var/snap/sdcore-upf/common/upf.json" == self.patch_machine.push.call_args[1]["path"]
-        )
+        expected_config_file_content = read_file("tests/unit/expected_upf.json").strip()
+        assert self.mock_machine.push_called
         assert json.loads(expected_config_file_content) == json.loads(
-            self.patch_machine.push.call_args[1]["source"]
+            self.mock_machine.push_called_with["source"]
         )
+        assert self.mock_machine.push_called_with["path"] == "/var/snap/sdcore-upf/common/upf.json"
 
     @patch("charms.operator_libs_linux.v2.snap.SnapCache")
     def test_given_config_file_written_with_different_content_when_config_changed_then_new_config_file_is_written(
         self, _
     ):
         self.harness.set_leader(True)
-        self.patch_machine.exists.return_value = True
+        self.mock_machine.exists_return_value = True
+        self.mock_machine.pull_return_value = "initial content"
 
         self.harness.update_config()
 
         expected_config_file_content = read_file("tests/unit/expected_upf.json").strip()
-        assert (
-            "/var/snap/sdcore-upf/common/upf.json" == self.patch_machine.push.call_args[1]["path"]
-        )
+        assert self.mock_machine.push_called
         assert json.loads(expected_config_file_content) == json.loads(
-            self.patch_machine.push.call_args[1]["source"]
+            self.mock_machine.push_called_with["source"]
         )
+        assert self.mock_machine.push_called_with["path"] == "/var/snap/sdcore-upf/common/upf.json"
 
     @patch("charms.operator_libs_linux.v2.snap.SnapCache")
     def test_given_config_file_written_with_identical_content_when_config_changed_then_new_config_file_not_written(
         self, _
     ):
         self.harness.set_leader(True)
-        self.patch_machine.exists.return_value = True
-        self.patch_machine.pull.return_value = read_file("tests/unit/expected_upf.json").strip()
+        self.mock_machine.exists_return_value = True
+        self.mock_machine.pull_return_value = read_file("tests/unit/expected_upf.json").strip()
 
         self.harness.update_config()
 
-        self.patch_machine.push.assert_not_called()
+        assert not self.mock_machine.push_called
 
     def test_given_invalid_config_when_config_changed_then_status_is_blocked(self):
         self.harness.set_leader(True)
-        self.harness.update_config({"gnb-subnet": "not an ip subnet"})
+        self.harness.update_config({"gnb-subnet": "not an ip address"})
 
         self.assertEqual(
             self.harness.model.unit.status,
@@ -141,7 +189,7 @@ class TestCharm(unittest.TestCase):
     def test_given_network_interfaces_not_valid_when_config_changed_then_status_is_blocked(
         self, _
     ):
-        self.patch_network.get_invalid_network_interfaces.return_value = [
+        self.mock_upf_network.get_invalid_network_interfaces.return_value = [
             "eth0",
             "eth1",
         ]
@@ -165,4 +213,4 @@ class TestCharm(unittest.TestCase):
             }
         )
 
-        self.patch_network.configure.assert_called_once()
+        self.mock_upf_network.configure.assert_called_once()
