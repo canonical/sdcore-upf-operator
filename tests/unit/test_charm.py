@@ -81,7 +81,7 @@ class TestCharm(unittest.TestCase):
         patch_machine.return_value = self.mock_machine
         self.mock_upf_network = MagicMock()
         self.mock_upf_network.get_invalid_network_interfaces.return_value = []
-        self.mock_upf_network.get_interface_ip_address.return_value = "192.168.250.3"
+        self.mock_upf_network.core_interface.get_ip_address.return_value = "192.168.250.3"
         patch_network.return_value = self.mock_upf_network
         self.harness = ops.testing.Harness(SdcoreUpfCharm)
         self.addCleanup(self.harness.cleanup)

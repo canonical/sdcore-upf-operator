@@ -82,7 +82,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         core_interface_name = self._get_core_interface_name()
         if not core_interface_name:
             raise ValueError("Core network interface name is empty")
-        core_ip_address = self._network.get_interface_ip_address(core_interface_name)
+        core_ip_address = self._network.core_interface.get_ip_address()
         if not core_ip_address:
             raise ValueError("Core network IP address is not valid")
         content = render_upf_config_file(
