@@ -37,7 +37,7 @@ class TestCharm(unittest.TestCase):
         self.patch_network.get_interface_ip_address.return_value = "192.168.250.3"
 
         self.machine_patch = patch("charm.Machine", return_value=self.patch_machine)
-        self.network_patch = patch("charm.Network", return_value=self.patch_network)
+        self.network_patch = patch("charm.UPFNetwork", return_value=self.patch_network)
 
         self.machine_patch.start()
         self.network_patch.start()

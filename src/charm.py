@@ -4,6 +4,7 @@
 
 """Machine charm for SD-Core User Plane Function."""
 
+import ipaddress
 import json
 import logging
 from typing import Optional
@@ -12,8 +13,8 @@ import ops
 from charms.operator_libs_linux.v2 import snap
 from jinja2 import Environment, FileSystemLoader
 from machine import Machine
-from network import Network, ip_is_valid
 from ops.model import ActiveStatus, BlockedStatus
+from upf_network import UPFNetwork
 
 UPF_SNAP_NAME = "sdcore-upf"
 UPF_SNAP_CHANNEL = "latest/edge"
@@ -30,8 +31,7 @@ class SdcoreUpfCharm(ops.CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
         self._machine = Machine()
-        self._network = Network(
-            machine=self._machine,
+        self._network = UPFNetwork(
             access_interface_name=self._get_access_interface_name(),
             core_interface_name=self._get_core_interface_name(),
             gnb_subnet=self._get_gnb_subnet_config(),
@@ -186,6 +186,15 @@ def render_upf_config_file(
         hwcksum=str(enable_hw_checksum).lower(),
     )
     return content
+
+
+def ip_is_valid(ip_address: str) -> bool:
+    """Check whether given IP config is valid."""
+    try:
+        ipaddress.ip_network(ip_address, strict=False)
+        return True
+    except ValueError:
+        return False
 
 
 if __name__ == "__main__":  # pragma: nocover
