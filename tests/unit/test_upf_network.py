@@ -2,6 +2,7 @@
 # See LICENSE file for licensing details.
 
 import unittest
+from socket import AF_INET, AF_INET6
 from typing import List
 from unittest.mock import MagicMock, Mock, patch
 
@@ -13,10 +14,10 @@ from upf_network import IPTablesRule, NetworkInterface, Route, UPFNetwork, UPFNe
 class MockIPAddr:
     def __init__(self, ipv4_address: str = "", ipv6_address: str = ""):
         if ipv4_address:
-            self.family = 2
+            self.family = AF_INET
             self.address = ipv4_address
         elif ipv6_address:
-            self.family = 10
+            self.family = AF_INET6
             self.address = ipv6_address
 
 

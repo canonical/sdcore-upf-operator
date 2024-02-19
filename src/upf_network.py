@@ -5,6 +5,7 @@
 """Abstract the network configuration for the UPF service."""
 
 import logging
+from socket import AF_INET
 from typing import List, Optional
 
 import iptc
@@ -41,13 +42,13 @@ class NetworkInterface:
         return True
 
     def get_ip_address(self) -> str:
-        """Get the IP address of the given network interface."""
+        """Get the IPv4 address of the given network interface."""
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
         try:
             iface_record = interfaces[self.name]
             ip_addresses = iface_record.ipaddr
             for ip in ip_addresses:
-                if ip.family == 2:
+                if ip.family == AF_INET:
                     return ip.address
             logger.warning("No IPv4 address found for interface %s", self.name)
         except KeyError:
@@ -55,9 +56,9 @@ class NetworkInterface:
         return ""
 
     def get_gateway_ip_address(self) -> str:
-        """Get the gateway IP address of the given network interface."""
+        """Get the gateway IPv4 address of the given network interface."""
         iface_index = self.get_index()
-        routes = self.ip_route.get_routes(family=2)
+        routes = self.ip_route.get_routes(family=AF_INET)
         for route in routes:
             oif = route.get_attr("RTA_OIF")
             gateway_ip = route.get_attr("RTA_GATEWAY")
@@ -92,8 +93,8 @@ class Route:
         self.metric = metric
 
     def exists(self) -> bool:
-        """Return whether the route already exists."""
-        routes = self.ip_route.get_routes(family=2)
+        """Return whether the IPv4 route already exists."""
+        routes = self.ip_route.get_routes(family=AF_INET)
         for route in routes:
             route_destination = route.get_attr("RTA_DST")
             route_gateway = route.get_attr("RTA_GATEWAY")
