@@ -3,12 +3,14 @@
 
 import json
 import unittest
+from itertools import count
 from unittest.mock import MagicMock, call, patch
 
 import ops
 import ops.testing
 from charm import SdcoreUpfCharm
 from charms.operator_libs_linux.v2.snap import SnapState
+from machine import ExecError
 
 
 def read_file(path: str) -> str:
@@ -30,7 +32,7 @@ class TestCharm(unittest.TestCase):
     @patch("charm.Machine")
     def setUp(self, patch_machine, patch_network):
         self.mock_machine = MagicMock()
-        self.mock_machine.pull.return_value = "Whatever content"
+        self.mock_machine.pull.return_value = ""
         patch_machine.return_value = self.mock_machine
         self.mock_upf_network = MagicMock()
         self.mock_upf_network.get_invalid_network_interfaces.return_value = []
@@ -87,6 +89,30 @@ class TestCharm(unittest.TestCase):
                 call(services=["pfcpiface"]),
             ]
         )
+
+    @patch("charm.time.sleep")
+    @patch("charm.time.time")
+    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    def test_bess_configuration_timeout_error_raised_on_exec_error(
+        self, mock_snap_cache, mock_time, mock_sleep
+    ):
+        mock_time.side_effect = count(start=1)
+        mock_sleep.return_value = None
+        self.harness.set_leader(True)
+        upf_snap = MagicMock()
+        mock_process = MagicMock()
+        self.mock_machine.exec.return_value = mock_process
+        mock_process.wait_output.side_effect = ExecError(
+            command="whatever",
+            exit_code=1,
+            stdout="",
+            stderr="",
+        )
+        snap_cache = {"sdcore-upf": upf_snap}
+        mock_snap_cache.return_value = snap_cache
+
+        with self.assertRaises(TimeoutError):
+            self.harness.update_config()
 
     @patch("charms.operator_libs_linux.v2.snap.SnapCache")
     def test_given_unit_is_leader_when_config_changed_then_status_is_active(self, mock_snap_cache):

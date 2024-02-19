@@ -37,6 +37,7 @@ juju add-machine ssh:ubuntu@<UPF machine IP address> --private-key id_rsa
 
 ```shell
 juju deploy sdcore-upf \
+  --channel=1.3/edge \
   --config access-interface-name=enp6s0 \
   --config core-interface-name=enp7s0 \
   --to <machine number>

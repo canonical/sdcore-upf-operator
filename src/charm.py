@@ -102,11 +102,12 @@ class SdcoreUpfCharm(ops.CharmBase):
             )
             try:
                 process.wait_output()
+                logger.info("Service `bessd` configured")
+                return
             except ExecError:
                 logger.info("Failed running configuration for bess")
                 time.sleep(2)
-            logger.info("Service `bessd` configured")
-            return
+
         raise TimeoutError("Timed out trying to run configuration for bess")
 
     def _generate_upf_config_file(self) -> None:
