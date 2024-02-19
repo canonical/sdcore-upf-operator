@@ -24,7 +24,7 @@ lxc network create core --type=bridge ipv4.address=192.168.250.1/24
 Deploy a VM using Multipass with the `access` and `core` networks:
 
 ```shell
-multipass launch 22.04 --name upf --network access --network core
+multipass launch 22.04 --name upf --network access --network core --memory 8G --cpus 4
 ```
 
 Add the Machine to the Juju controller:
