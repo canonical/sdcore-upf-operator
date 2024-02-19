@@ -19,15 +19,15 @@ class Machine:
     """
 
     def exists(self, path: str) -> bool:
-        """Check if a file exists.
+        """Report whether a path exists on the filesystem.
 
         Args:
-            path: The path of the file
+            path: The path
 
         Returns:
-            bool: Whether the file exists
+            bool: Whether the path exists
         """
-        return os.path.isfile(path)
+        return os.path.exists(path)
 
     def pull(self, path: str) -> str:
         """Get the content of a file.

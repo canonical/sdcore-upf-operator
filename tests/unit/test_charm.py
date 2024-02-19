@@ -4,7 +4,7 @@
 import json
 import unittest
 from typing import List, Optional
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import ops
 import ops.testing
@@ -74,10 +74,15 @@ class MockMachine:
 
 
 class TestCharm(unittest.TestCase):
+    @patch("charm.UPFNetwork")
     @patch("charm.Machine")
-    def setUp(self, patch_machine):
+    def setUp(self, patch_machine, patch_network):
         self.mock_machine = MockMachine()
         patch_machine.return_value = self.mock_machine
+        self.mock_upf_network = MagicMock()
+        self.mock_upf_network.get_invalid_network_interfaces.return_value = []
+        self.mock_upf_network.core_interface.get_ip_address.return_value = "192.168.250.3"
+        patch_network.return_value = self.mock_upf_network
         self.harness = ops.testing.Harness(SdcoreUpfCharm)
         self.addCleanup(self.harness.cleanup)
         self.harness.begin()
@@ -173,9 +178,39 @@ class TestCharm(unittest.TestCase):
 
     def test_given_invalid_config_when_config_changed_then_status_is_blocked(self):
         self.harness.set_leader(True)
-        self.harness.update_config({"core-ip": "not an ip address"})
+        self.harness.update_config({"gnb-subnet": "not an ip address"})
 
         self.assertEqual(
             self.harness.model.unit.status,
-            ops.BlockedStatus("The following configurations are not valid: ['core-ip']"),
+            ops.BlockedStatus("The following configurations are not valid: ['gnb-subnet']"),
         )
+
+    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    def test_given_network_interfaces_not_valid_when_config_changed_then_status_is_blocked(
+        self, _
+    ):
+        self.mock_upf_network.get_invalid_network_interfaces.return_value = [
+            "eth0",
+            "eth1",
+        ]
+        self.harness.set_leader(True)
+        self.harness.update_config()
+
+        self.assertEqual(
+            self.harness.model.unit.status,
+            ops.BlockedStatus("Network interfaces are not valid: ['eth0', 'eth1']"),
+        )
+
+    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    def test_given_network_interfaces_valid_when_config_changed_then_routes_are_created(self, _):
+        gnb_subnet = "192.168.251.0/24"
+        self.harness.set_leader(True)
+        self.harness.update_config(
+            {
+                "gnb-subnet": gnb_subnet,
+                "core-interface-name": "eth0",
+                "access-interface-name": "eth1",
+            }
+        )
+
+        self.mock_upf_network.configure.assert_called_once()

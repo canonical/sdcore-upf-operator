@@ -14,6 +14,7 @@ from charms.operator_libs_linux.v2 import snap
 from jinja2 import Environment, FileSystemLoader
 from machine import Machine
 from ops.model import ActiveStatus, BlockedStatus
+from upf_network import UPFNetwork
 
 UPF_SNAP_NAME = "sdcore-upf"
 UPF_SNAP_CHANNEL = "latest/edge"
@@ -30,6 +31,11 @@ class SdcoreUpfCharm(ops.CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
         self._machine = Machine()
+        self._network = UPFNetwork(
+            access_interface_name=self._get_access_interface_name(),
+            core_interface_name=self._get_core_interface_name(),
+            gnb_subnet=self._get_gnb_subnet_config(),
+        )
         self.framework.observe(self.on.install, self._configure)
         self.framework.observe(self.on.update_status, self._configure)
         self.framework.observe(self.on.config_changed, self._configure)
@@ -44,12 +50,18 @@ class SdcoreUpfCharm(ops.CharmBase):
                 f"The following configurations are not valid: {invalid_configs}"
             )
             return
+        if invalid_network_interfaces := self._network.get_invalid_network_interfaces():
+            self.unit.status = BlockedStatus(
+                f"Network interfaces are not valid: {invalid_network_interfaces}"
+            )
+            return
+        self._network.configure()
         self._install_upf_snap()
         self._generate_upf_config_file()
         self.unit.status = ActiveStatus()
 
     def _install_upf_snap(self) -> None:
-        """Install the UPF snap in the machine."""
+        """Install the UPF snap in the workload."""
         try:
             snap_cache = snap.SnapCache()
             upf_snap = snap_cache[UPF_SNAP_NAME]
@@ -67,7 +79,12 @@ class SdcoreUpfCharm(ops.CharmBase):
 
     def _generate_upf_config_file(self) -> None:
         """Generate the UPF configuration file."""
-        core_ip_address = self._get_core_network_ip_config()
+        core_interface_name = self._get_core_interface_name()
+        if not core_interface_name:
+            raise ValueError("Core network interface name is empty")
+        core_ip_address = self._network.core_interface.get_ip_address()
+        if not core_ip_address:
+            raise ValueError("Core network IP address is not valid")
         content = render_upf_config_file(
             upf_hostname=self._get_upf_hostname(),
             upf_mode=self._get_upf_mode(),
@@ -105,19 +122,15 @@ class SdcoreUpfCharm(ops.CharmBase):
         invalid_configs = []
         if not self._get_dnn_config():
             invalid_configs.append("dnn")
-        if not self._core_ip_config_is_valid():
-            invalid_configs.append("core-ip")
+        gnb_subnet = self._get_gnb_subnet_config()
+        if not gnb_subnet:
+            invalid_configs.append("gnb-subnet")
+        if not ip_is_valid(gnb_subnet):
+            invalid_configs.append("gnb-subnet")
         return invalid_configs
 
-    def _core_ip_config_is_valid(self) -> bool:
-        """Return whether the core-ip config is valid."""
-        core_ip = self._get_core_network_ip_config()
-        if not core_ip:
-            return False
-        return ip_is_valid(core_ip)
-
-    def _get_core_network_ip_config(self) -> str:
-        return self.model.config.get("core-ip", "")
+    def _get_gnb_subnet_config(self) -> str:
+        return self.model.config.get("gnb-subnet", "")
 
     def _get_upf_hostname(self) -> str:
         return "0.0.0.0"
