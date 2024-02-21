@@ -24,7 +24,7 @@ lxc network create core --type=bridge ipv4.address=192.168.250.1/24
 Deploy a VM using Multipass with the `access` and `core` networks:
 
 ```shell
-multipass launch 22.04 --name upf --network access --network core
+multipass launch 22.04 --name upf --network access --network core --memory 8G --cpus 4
 ```
 
 Add the Machine to the Juju controller:
@@ -37,6 +37,7 @@ juju add-machine ssh:ubuntu@<UPF machine IP address> --private-key id_rsa
 
 ```shell
 juju deploy sdcore-upf \
+  --channel=1.3/edge \
   --config access-interface-name=enp6s0 \
   --config core-interface-name=enp7s0 \
   --to <machine number>

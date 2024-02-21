@@ -7,18 +7,19 @@
 import ipaddress
 import json
 import logging
+import time
 from typing import Optional
 
 import ops
 from charms.operator_libs_linux.v2 import snap
 from jinja2 import Environment, FileSystemLoader
-from machine import Machine
+from machine import ExecError, Machine
 from ops.model import ActiveStatus, BlockedStatus
 from upf_network import UPFNetwork
 
 UPF_SNAP_NAME = "sdcore-upf"
 UPF_SNAP_CHANNEL = "latest/edge"
-UPF_SNAP_REVISION = "3"
+UPF_SNAP_REVISION = "7"
 UPF_CONFIG_FILE_NAME = "upf.json"
 UPF_CONFIG_PATH = "/var/snap/sdcore-upf/common"
 
@@ -58,6 +59,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         self._network.configure()
         self._install_upf_snap()
         self._generate_upf_config_file()
+        self._start_upf_service()
         self.unit.status = ActiveStatus()
 
     def _install_upf_snap(self) -> None:
@@ -76,6 +78,37 @@ class SdcoreUpfCharm(ops.CharmBase):
         except snap.SnapError as e:
             logger.error("An exception occurred when installing the UPF snap. Reason: %s", str(e))
             raise e
+
+    def _start_upf_service(self) -> None:
+        """Start the UPF service."""
+        snap_cache = snap.SnapCache()
+        upf_snap = snap_cache[UPF_SNAP_NAME]
+        upf_snap.start(services=["bessd"])
+        upf_snap.start(services=["routectl"])
+        self._run_bess_configuration()
+        upf_snap.start(services=["pfcpiface"])
+        logger.info("UPF service started")
+
+    def _run_bess_configuration(self) -> None:
+        """Run bessd configuration in workload."""
+        initial_time = time.time()
+        timeout = 300
+        logger.info("Starting configuration of the `bessd` service")
+        command = "sdcore-upf.bessctl run /snap/sdcore-upf/current/up4"
+        while time.time() - initial_time <= timeout:
+            process = self._machine.exec(
+                command=command.split(),
+                timeout=10,
+            )
+            try:
+                process.wait_output()
+                logger.info("Service `bessd` configured")
+                return
+            except ExecError:
+                logger.info("Failed running configuration for bess")
+                time.sleep(2)
+
+        raise TimeoutError("Timed out trying to run configuration for bess")
 
     def _generate_upf_config_file(self) -> None:
         """Generate the UPF configuration file."""
