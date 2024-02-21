@@ -19,7 +19,7 @@ from upf_network import UPFNetwork
 
 UPF_SNAP_NAME = "sdcore-upf"
 UPF_SNAP_CHANNEL = "latest/edge"
-UPF_SNAP_REVISION = "3"
+UPF_SNAP_REVISION = "7"
 UPF_CONFIG_FILE_NAME = "upf.json"
 UPF_CONFIG_PATH = "/var/snap/sdcore-upf/common"
 
