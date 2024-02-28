@@ -86,7 +86,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         for fiveg_n4_relation in fiveg_n4_relations:
             self.fiveg_n4_provider.publish_upf_n4_information(
                 relation_id=fiveg_n4_relation.id,
-                upf_hostname=self._get_n4_upf_hostname(),
+                upf_hostname=self._get_upf_hostname(),
                 upf_n4_port=8805,
             )
 

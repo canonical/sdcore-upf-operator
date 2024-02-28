@@ -1,4 +1,8 @@
+name: sdcore-upf
 type: charm
+title: SD-Core UPF Operator
+summary: Charmed Operator for SD-Core's UPF.
+description: Charmed Operator for SD-Core's UPF.
 
 bases:
   - build-on:
@@ -7,3 +11,7 @@ bases:
     run-on:
     - name: ubuntu
       channel: "22.04"
+
+provides:
+  fiveg_n4:
+    interface: fiveg_n4
