@@ -11,6 +11,7 @@ import time
 from typing import Optional
 
 import ops
+from charms.sdcore_upf_k8s.v0.fiveg_n4 import N4Provides  # type: ignore[import]
 from charms.operator_libs_linux.v2 import snap
 from jinja2 import Environment, FileSystemLoader
 from machine import ExecError, Machine
@@ -37,9 +38,13 @@ class SdcoreUpfCharm(ops.CharmBase):
             core_interface_name=self._get_core_interface_name(),
             gnb_subnet=self._get_gnb_subnet_config(),
         )
+        self.fiveg_n4_provider = N4Provides(charm=self, relation_name="fiveg_n4")
         self.framework.observe(self.on.install, self._configure)
         self.framework.observe(self.on.update_status, self._configure)
         self.framework.observe(self.on.config_changed, self._configure)
+        self.framework.observe(
+            self.fiveg_n4_provider.on.fiveg_n4_request, self._on_fiveg_n4_request
+        )
 
     def _configure(self, _):
         """Handle UPF installation."""
@@ -61,6 +66,29 @@ class SdcoreUpfCharm(ops.CharmBase):
         self._generate_upf_config_file()
         self._start_upf_service()
         self.unit.status = ActiveStatus()
+
+    def _on_fiveg_n4_request(self, event) -> None:
+        """Handles 5G N4 requests events.
+
+        Args:
+            event: Juju event
+        """
+        if not self.unit.is_leader():
+            return
+        self._update_fiveg_n4_relation_data()
+
+    def _update_fiveg_n4_relation_data(self) -> None:
+        """Publishes UPF hostname and the N4 port in the `fiveg_n4` relation data bag."""
+        fiveg_n4_relations = self.model.relations.get("fiveg_n4")
+        if not fiveg_n4_relations:
+            logger.info("No `fiveg_n4` relations found.")
+            return
+        for fiveg_n4_relation in fiveg_n4_relations:
+            self.fiveg_n4_provider.publish_upf_n4_information(
+                relation_id=fiveg_n4_relation.id,
+                upf_hostname=self._get_n4_upf_hostname(),
+                upf_n4_port=8805,
+            )
 
     def _install_upf_snap(self) -> None:
         """Install the UPF snap in the workload."""

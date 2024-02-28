@@ -5,4 +5,5 @@ juju
 pyright
 pytest
 pytest-operator
+pytest-interface-tester
 ruff

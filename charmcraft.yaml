@@ -1,8 +1,4 @@
-name: sdcore-upf
 type: charm
-title: SD-Core UPF Operator
-summary: Charmed Operator for SD-Core's UPF.
-description: Charmed Operator for SD-Core's UPF.
 
 bases:
   - build-on:
