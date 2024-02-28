@@ -20,3 +20,8 @@ options:
     type: string
     default: eth1
     description: Name of the UPF's core interface.
+  external-upf-hostname:
+    type: string
+    description: |
+      Externally accessible FQDN for the UPF.
+      If not provided, it will default to the machine hostname.
