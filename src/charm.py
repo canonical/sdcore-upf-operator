@@ -96,7 +96,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         """Return the UPF hostname to be exposed over the `fiveg_n4` relation.
 
         If a configuration is provided, it is returned. If that is
-        not available, returns the hostname of the machine.
+        not available, returns the IP address of the core interface.
 
         Returns:
             str: Hostname of the UPF
@@ -104,7 +104,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         if configured_hostname := self.model.config.get("external-upf-hostname"):
             return configured_hostname
         else:
-            return self._get_upf_hostname()
+            return self._network.core_interface.get_ip_address()
 
     def _install_upf_snap(self) -> None:
         """Install the UPF snap in the workload."""

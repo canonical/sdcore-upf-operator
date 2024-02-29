@@ -262,7 +262,7 @@ class TestCharm(unittest.TestCase):
 
         patched_publish_upf_n4_information.assert_called_once_with(
             relation_id=n4_relation_id,
-            upf_hostname="0.0.0.0",
+            upf_hostname="192.168.250.3",
             upf_n4_port=TEST_PFCP_PORT,
         )
 
