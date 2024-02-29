@@ -12,6 +12,8 @@ from charm import SdcoreUpfCharm
 from charms.operator_libs_linux.v2.snap import SnapState
 from machine import ExecError
 
+TEST_PFCP_PORT = 1234
+
 
 def read_file(path: str) -> str:
     """Read a file and returns as a string.
@@ -205,3 +207,92 @@ class TestCharm(unittest.TestCase):
         )
 
         self.mock_upf_network.configure.assert_called_once()
+
+    @patch("charms.sdcore_upf_k8s.v0.fiveg_n4.N4Provides.publish_upf_n4_information")
+    def test_given_unit_is_not_leader_when_fiveg_n4_request_then_upf_hostname_is_not_published(
+        self, patched_publish_upf_n4_information
+    ):
+        self.harness.set_leader(is_leader=False)
+        test_external_upf_hostname = "test-upf.external.hostname.com"
+        self.harness.update_config(
+            key_values={"external-upf-hostname": test_external_upf_hostname}
+        )
+
+        n4_relation_id = self.harness.add_relation("fiveg_n4", "n4_requirer_app")
+        self.harness.add_relation_unit(n4_relation_id, "n4_requirer_app/0")
+
+        patched_publish_upf_n4_information.assert_not_called()
+
+    @patch("charms.sdcore_upf_k8s.v0.fiveg_n4.N4Provides.publish_upf_n4_information")
+    @patch("charm.PFCP_PORT", TEST_PFCP_PORT)
+    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    def test_given_external_upf_hostname_config_set_and_fiveg_n4_relation_created_when_fiveg_n4_request_then_upf_hostname_and_n4_port_is_published(  # noqa: E501
+        self, patched_snap_cache, patched_publish_upf_n4_information
+    ):
+        upf_snap = MagicMock()
+        snap_cache = {"sdcore-upf": upf_snap}
+        patched_snap_cache.return_value = snap_cache
+        self.harness.set_leader(True)
+        test_external_upf_hostname = "test-upf.external.hostname.com"
+        self.harness.update_config(
+            key_values={"external-upf-hostname": test_external_upf_hostname}
+        )
+
+        n4_relation_id = self.harness.add_relation("fiveg_n4", "n4_requirer_app")
+        self.harness.add_relation_unit(n4_relation_id, "n4_requirer_app/0")
+
+        patched_publish_upf_n4_information.assert_called_once_with(
+            relation_id=n4_relation_id,
+            upf_hostname=test_external_upf_hostname,
+            upf_n4_port=TEST_PFCP_PORT,
+        )
+
+    @patch("charms.sdcore_upf_k8s.v0.fiveg_n4.N4Provides.publish_upf_n4_information")
+    @patch("charm.PFCP_PORT", TEST_PFCP_PORT)
+    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    def test_given_external_upf_hostname_config_not_set_and_fiveg_n4_relation_created_when_fiveg_n4_request_then_upf_hostname_and_n4_port_is_published(  # noqa: E501
+        self, patched_snap_cache, patched_publish_upf_n4_information
+    ):
+        upf_snap = MagicMock()
+        snap_cache = {"sdcore-upf": upf_snap}
+        patched_snap_cache.return_value = snap_cache
+        self.harness.set_leader(True)
+        n4_relation_id = self.harness.add_relation("fiveg_n4", "n4_requirer_app")
+        self.harness.add_relation_unit(n4_relation_id, "n4_requirer_app/0")
+
+        patched_publish_upf_n4_information.assert_called_once_with(
+            relation_id=n4_relation_id,
+            upf_hostname="192.168.250.3",
+            upf_n4_port=TEST_PFCP_PORT,
+        )
+
+    @patch("charms.sdcore_upf_k8s.v0.fiveg_n4.N4Provides.publish_upf_n4_information")
+    @patch("charm.PFCP_PORT", TEST_PFCP_PORT)
+    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    def test_given_fiveg_n4_relation_exists_when_external_upf_hostname_config_changed_then_new_upf_hostname_is_published(  # noqa: E501
+        self, patched_snap_cache, patched_publish_upf_n4_information
+    ):
+        upf_snap = MagicMock()
+        snap_cache = {"sdcore-upf": upf_snap}
+        patched_snap_cache.return_value = snap_cache
+        self.harness.set_leader(True)
+        test_external_upf_hostname = "test-upf.external.hostname.com"
+        self.harness.update_config(key_values={"external-upf-hostname": "whatever.com"})
+        n4_relation_id = self.harness.add_relation("fiveg_n4", "n4_requirer_app")
+        self.harness.add_relation_unit(n4_relation_id, "n4_requirer_app/0")
+        expected_calls = [
+            call(
+                relation_id=n4_relation_id, upf_hostname="whatever.com", upf_n4_port=TEST_PFCP_PORT
+            ),
+            call(
+                relation_id=n4_relation_id,
+                upf_hostname=test_external_upf_hostname,
+                upf_n4_port=TEST_PFCP_PORT,
+            ),
+        ]
+
+        self.harness.update_config(
+            key_values={"external-upf-hostname": test_external_upf_hostname}
+        )
+
+        patched_publish_upf_n4_information.assert_has_calls(expected_calls)
