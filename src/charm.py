@@ -40,8 +40,8 @@ class SdcoreUpfCharm(ops.CharmBase):
             self.model.unit.status = BlockedStatus(exc.msg)
             return
         self._network = UPFNetwork(
-            access_interface_name=self._charm_config.access_interface_name,
-            core_interface_name=self._charm_config.core_interface_name,
+            access_interface_name=self._charm_config.access_interface_name,  # type: ignore
+            core_interface_name=self._charm_config.core_interface_name,  # type: ignore
             gnb_subnet=str(self._charm_config.gnb_subnet),
         )
         self.fiveg_n4_provider = N4Provides(charm=self, relation_name="fiveg_n4")
@@ -169,7 +169,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         content = render_upf_config_file(
             upf_hostname=self._get_upf_hostname(),
             upf_mode=self._get_upf_mode(),
-            access_interface_name=self._charm_config.access_interface_name,
+            access_interface_name=self._charm_config.access_interface_name,  # type: ignore
             core_interface_name=self._charm_config.core_interface_name,
             core_ip_address=core_ip_address.split("/")[0] if core_ip_address else "",
             dnn=self._charm_config.dnn,

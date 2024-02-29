@@ -47,7 +47,7 @@ class UpfConfig(BaseModel):  # pylint: disable=too-few-public-methods
     model_config = ConfigDict(alias_generator=to_kebab, use_enum_values=True)
 
     dnn: StrictStr = Field(default="internet", min_length=1)
-    gnb_subnet: IPvAnyNetwork = IPvAnyNetwork("192.168.251.0/24")
+    gnb_subnet: IPvAnyNetwork = IPvAnyNetwork("192.168.251.0/24")  # type: ignore
     access_interface_name: StrictStr = Field(default="eth0")
     core_interface_name: StrictStr = Field(default="eth1")
     external_upf_hostname: StrictStr = Field(default="")
@@ -103,7 +103,7 @@ class CharmConfig:
                 if param := error["loc"]:
                     error_fields.extend(param)
                 else:
-                    value_error_msg: ValueError = error["ctx"]["error"]
+                    value_error_msg: ValueError = error["ctx"]["error"]  # type: ignore
                     error_fields.extend(str(value_error_msg).split())
             error_fields.sort()
             error_field_str = ", ".join(f"'{f}'" for f in error_fields)
