@@ -1,4 +1,5 @@
 jinja2
 ops
+pydantic<3
 pyroute2
 python-iptables
