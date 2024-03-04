@@ -4,13 +4,13 @@
 
 """Machine charm for SD-Core User Plane Function."""
 
-import ipaddress
 import json
 import logging
 import time
 from typing import Optional
 
 import ops
+from charm_config import CharmConfig, CharmConfigInvalidError
 from charms.operator_libs_linux.v2 import snap
 from charms.sdcore_upf_k8s.v0.fiveg_n4 import N4Provides  # type: ignore[import]
 from jinja2 import Environment, FileSystemLoader
@@ -34,10 +34,15 @@ class SdcoreUpfCharm(ops.CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
         self._machine = Machine()
+        try:
+            self._charm_config: CharmConfig = CharmConfig.from_charm(charm=self)
+        except CharmConfigInvalidError as exc:
+            self.model.unit.status = BlockedStatus(exc.msg)
+            return
         self._network = UPFNetwork(
-            access_interface_name=self._get_access_interface_name(),
-            core_interface_name=self._get_core_interface_name(),
-            gnb_subnet=self._get_gnb_subnet_config(),
+            access_interface_name=self._charm_config.access_interface_name,  # type: ignore
+            core_interface_name=self._charm_config.core_interface_name,  # type: ignore
+            gnb_subnet=str(self._charm_config.gnb_subnet),
         )
         self.fiveg_n4_provider = N4Provides(charm=self, relation_name="fiveg_n4")
         self.framework.observe(self.on.install, self._configure)
@@ -52,10 +57,10 @@ class SdcoreUpfCharm(ops.CharmBase):
         if not self.unit.is_leader():
             self.unit.status = BlockedStatus("Scaling is not implemented for this charm")
             return
-        if invalid_configs := self._get_invalid_configs():
-            self.unit.status = BlockedStatus(
-                f"The following configurations are not valid: {invalid_configs}"
-            )
+        try:
+            self._charm_config: CharmConfig = CharmConfig.from_charm(charm=self)
+        except CharmConfigInvalidError as exc:
+            self.model.unit.status = BlockedStatus(exc.msg)
             return
         if invalid_network_interfaces := self._network.get_invalid_network_interfaces():
             self.unit.status = BlockedStatus(
@@ -101,7 +106,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         Returns:
             str: Hostname of the UPF
         """
-        if configured_hostname := self.model.config.get("external-upf-hostname"):
+        if configured_hostname := self._charm_config.external_upf_hostname:
             return configured_hostname
         else:
             return self._network.core_interface.get_ip_address()
@@ -156,8 +161,7 @@ class SdcoreUpfCharm(ops.CharmBase):
 
     def _generate_upf_config_file(self) -> None:
         """Generate the UPF configuration file."""
-        core_interface_name = self._get_core_interface_name()
-        if not core_interface_name:
+        if not self._charm_config.core_interface_name:
             raise ValueError("Core network interface name is empty")
         core_ip_address = self._network.core_interface.get_ip_address()
         if not core_ip_address:
@@ -165,12 +169,12 @@ class SdcoreUpfCharm(ops.CharmBase):
         content = render_upf_config_file(
             upf_hostname=self._get_upf_hostname(),
             upf_mode=self._get_upf_mode(),
-            access_interface_name=self._get_access_interface_name(),
-            core_interface_name=self._get_core_interface_name(),
+            access_interface_name=self._charm_config.access_interface_name,  # type: ignore
+            core_interface_name=self._charm_config.core_interface_name,
             core_ip_address=core_ip_address.split("/")[0] if core_ip_address else "",
-            dnn=self._get_dnn_config(),
+            dnn=self._charm_config.dnn,
             pod_share_path=UPF_CONFIG_PATH,
-            enable_hw_checksum=self._get_enable_hw_checksum(),
+            enable_hw_checksum=self._charm_config.enable_hw_checksum,
         )
         if not self._upf_config_file_is_written() or not self._upf_config_file_content_matches(
             content=content
@@ -194,47 +198,11 @@ class SdcoreUpfCharm(ops.CharmBase):
         self._machine.push(path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}", source=content)
         logger.info("Pushed %s config file", UPF_CONFIG_FILE_NAME)
 
-    def _get_invalid_configs(self) -> list[str]:
-        """Return list of invalid configurations."""
-        invalid_configs = []
-        if not self._get_dnn_config():
-            invalid_configs.append("dnn")
-        gnb_subnet = self._get_gnb_subnet_config()
-        if not gnb_subnet:
-            invalid_configs.append("gnb-subnet")
-        if not ip_is_valid(gnb_subnet):
-            invalid_configs.append("gnb-subnet")
-        return invalid_configs
-
-    def _get_gnb_subnet_config(self) -> str:
-        return self.model.config.get("gnb-subnet", "")
-
     def _get_upf_hostname(self) -> str:
         return "0.0.0.0"
 
     def _get_upf_mode(self) -> str:
         return "af_packet"
-
-    def _get_dnn_config(self) -> str:
-        return self.model.config.get("dnn", "")
-
-    def _get_enable_hw_checksum(self) -> bool:
-        return bool(self.model.config.get("enable-hw-checksum", False))
-
-    def _get_access_interface_name(self) -> str:
-        return self.model.config.get("access-interface-name", "")
-
-    def _get_core_interface_name(self) -> str:
-        return self.model.config.get("core-interface-name", "")
-
-
-def ip_is_valid(ip_address: str) -> bool:
-    """Check whether given IP config is valid."""
-    try:
-        ipaddress.ip_network(ip_address, strict=False)
-        return True
-    except ValueError:
-        return False
 
 
 def render_upf_config_file(

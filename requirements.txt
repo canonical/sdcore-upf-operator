@@ -4,17 +4,27 @@
 #
 #    pip-compile
 #
+annotated-types==0.6.0
+    # via pydantic
 jinja2==3.1.3
     # via -r requirements.in
 markupsafe==2.1.5
     # via jinja2
 ops==2.10.0
     # via -r requirements.in
+pydantic==2.6.3
+    # via -r requirements.in
+pydantic-core==2.16.3
+    # via pydantic
 pyroute2==0.7.12
     # via -r requirements.in
 python-iptables==1.0.1
     # via -r requirements.in
 pyyaml==6.0.1
     # via ops
+typing-extensions==4.10.0
+    # via
+    #   pydantic
+    #   pydantic-core
 websocket-client==1.7.0
     # via ops
