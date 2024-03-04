@@ -12,6 +12,15 @@ bases:
     - name: ubuntu
       channel: "22.04"
 
+parts:
+  charm:
+    build-packages:
+      - cargo
+      - rustc
+    charm-python-packages:
+      - pip
+      - setuptools
+
 provides:
   fiveg_n4:
     interface: fiveg_n4
