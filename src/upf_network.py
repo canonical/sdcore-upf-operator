@@ -209,3 +209,11 @@ class UPFNetwork:
         if not self.ip_tables_rule.exists():
             logger.info("Iptables rule does not exist")
             self.ip_tables_rule.create()
+
+    def is_configured(self) -> bool:
+        """Return whether the network is configured for the UPF service."""
+        return (
+            self.default_route.exists()
+            and self.ran_route.exists()
+            and self.ip_tables_rule.exists()
+        )

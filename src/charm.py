@@ -11,11 +11,12 @@ from typing import Optional
 
 import ops
 from charm_config import CharmConfig, CharmConfigInvalidError
-from charms.operator_libs_linux.v2 import snap
-from charms.sdcore_upf_k8s.v0.fiveg_n4 import N4Provides  # type: ignore[import]
+from charms.operator_libs_linux.v2.snap import SnapCache, SnapError, SnapState
+from charms.sdcore_upf_k8s.v0.fiveg_n4 import N4Provides
 from jinja2 import Environment, FileSystemLoader
 from machine import ExecError, Machine
-from ops.model import ActiveStatus, BlockedStatus
+from ops.charm import CollectStatusEvent
+from ops.model import ActiveStatus, BlockedStatus, WaitingStatus
 from upf_network import UPFNetwork
 
 UPF_SNAP_NAME = "sdcore-upf"
@@ -36,8 +37,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         self._machine = Machine()
         try:
             self._charm_config: CharmConfig = CharmConfig.from_charm(charm=self)
-        except CharmConfigInvalidError as exc:
-            self.model.unit.status = BlockedStatus(exc.msg)
+        except CharmConfigInvalidError:
             return
         self._network = UPFNetwork(
             access_interface_name=self._charm_config.access_interface_name,  # type: ignore
@@ -45,6 +45,7 @@ class SdcoreUpfCharm(ops.CharmBase):
             gnb_subnet=str(self._charm_config.gnb_subnet),
         )
         self.fiveg_n4_provider = N4Provides(charm=self, relation_name="fiveg_n4")
+        self.framework.observe(self.on.collect_unit_status, self._on_collect_status)
         self.framework.observe(self.on.install, self._configure)
         self.framework.observe(self.on.update_status, self._configure)
         self.framework.observe(self.on.config_changed, self._configure)
@@ -52,27 +53,47 @@ class SdcoreUpfCharm(ops.CharmBase):
             self.fiveg_n4_provider.on.fiveg_n4_request, self._on_fiveg_n4_request
         )
 
-    def _configure(self, _):
-        """Handle UPF installation."""
+    def _on_collect_status(self, event: CollectStatusEvent):
+        """Collect unit status."""
         if not self.unit.is_leader():
-            self.unit.status = BlockedStatus("Scaling is not implemented for this charm")
+            event.add_status(BlockedStatus("Scaling is not implemented for this charm"))
             return
         try:
             self._charm_config: CharmConfig = CharmConfig.from_charm(charm=self)
         except CharmConfigInvalidError as exc:
-            self.model.unit.status = BlockedStatus(exc.msg)
+            event.add_status(BlockedStatus(exc.msg))
             return
         if invalid_network_interfaces := self._network.get_invalid_network_interfaces():
-            self.unit.status = BlockedStatus(
-                f"Network interfaces are not valid: {invalid_network_interfaces}"
+            event.add_status(
+                BlockedStatus(f"Network interfaces are not valid: {invalid_network_interfaces}")
             )
+            return
+        if not self._network.is_configured():
+            event.add_status(WaitingStatus("Waiting for network configuration"))
+            return
+        if not self._upf_config_file_is_written():
+            event.add_status(WaitingStatus("Waiting for UPF configuration file"))
+            return
+        if not self._upf_service_started():
+            event.add_status(WaitingStatus("Waiting for UPF service to start"))
+            return
+        event.add_status(ActiveStatus())
+
+    def _configure(self, _):
+        """Handle UPF installation."""
+        if not self.unit.is_leader():
+            return
+        if self._network.get_invalid_network_interfaces():
+            return
+        try:
+            self._charm_config: CharmConfig = CharmConfig.from_charm(charm=self)
+        except CharmConfigInvalidError:
             return
         self._network.configure()
         self._install_upf_snap()
         self._generate_upf_config_file()
         self._start_upf_service()
         self._update_fiveg_n4_relation_data()
-        self.unit.status = ActiveStatus()
 
     def _on_fiveg_n4_request(self, event) -> None:
         """Handle 5G N4 requests events.
@@ -114,29 +135,46 @@ class SdcoreUpfCharm(ops.CharmBase):
     def _install_upf_snap(self) -> None:
         """Install the UPF snap in the workload."""
         try:
-            snap_cache = snap.SnapCache()
+            snap_cache = SnapCache()
             upf_snap = snap_cache[UPF_SNAP_NAME]
             upf_snap.ensure(
-                snap.SnapState.Latest,
+                SnapState.Latest,
                 channel=UPF_SNAP_CHANNEL,
                 revision=UPF_SNAP_REVISION,
                 devmode=True,
             )
             upf_snap.hold()
             logger.info("UPF snap installed")
-        except snap.SnapError as e:
+        except SnapError as e:
             logger.error("An exception occurred when installing the UPF snap. Reason: %s", str(e))
             raise e
 
+    def _upf_snap_installed(self) -> bool:
+        """Check if the UPF snap is installed."""
+        snap_cache = SnapCache()
+        upf_snap = snap_cache[UPF_SNAP_NAME]
+        return upf_snap.state == SnapState.Latest
+
     def _start_upf_service(self) -> None:
         """Start the UPF service."""
-        snap_cache = snap.SnapCache()
+        snap_cache = SnapCache()
         upf_snap = snap_cache[UPF_SNAP_NAME]
         upf_snap.start(services=["bessd"])
         upf_snap.start(services=["routectl"])
         self._run_bess_configuration()
         upf_snap.start(services=["pfcpiface"])
         logger.info("UPF service started")
+
+    def _upf_service_started(self) -> bool:
+        """Check if the UPF service is started."""
+        snap_cache = SnapCache()
+        upf_snap = snap_cache[UPF_SNAP_NAME]
+        upf_services = upf_snap.services
+        return (
+            upf_services["bessd"]["active"]
+            and upf_services["routectl"]["active"]
+            and upf_services["pfcpiface"]["active"]
+        )
 
     def _run_bess_configuration(self) -> None:
         """Run bessd configuration in workload."""
