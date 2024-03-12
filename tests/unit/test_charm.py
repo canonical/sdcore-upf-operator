@@ -300,3 +300,21 @@ class TestCharm(unittest.TestCase):
         )
 
         patched_publish_upf_n4_information.assert_has_calls(expected_calls)
+
+    @patch("charm.SnapCache")
+    def test_given_upf_installed_when_remove_then_snap_removed(self, patched_snap_cache):
+        self.harness.set_leader(True)
+        upf_snap = MagicMock()
+        snap_cache = {"sdcore-upf": upf_snap}
+        patched_snap_cache.return_value = snap_cache
+
+        self.harness.charm.on.remove.emit()
+
+        upf_snap.stop.assert_has_calls(
+            calls=[
+                call(services=["bessd"]),
+                call(services=["routectl"]),
+                call(services=["pfcpiface"]),
+            ]
+        )
+        upf_snap.ensure.assert_called_with(SnapState.Absent)

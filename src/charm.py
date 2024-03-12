@@ -15,7 +15,7 @@ from charms.operator_libs_linux.v2.snap import SnapCache, SnapError, SnapState
 from charms.sdcore_upf_k8s.v0.fiveg_n4 import N4Provides
 from jinja2 import Environment, FileSystemLoader
 from machine import ExecError, Machine
-from ops import ActiveStatus, BlockedStatus, CollectStatusEvent, WaitingStatus
+from ops import ActiveStatus, BlockedStatus, CollectStatusEvent, RemoveEvent, WaitingStatus
 from upf_network import UPFNetwork
 
 UPF_SNAP_NAME = "sdcore-upf"
@@ -51,6 +51,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         self.framework.observe(
             self.fiveg_n4_provider.on.fiveg_n4_request, self._on_fiveg_n4_request
         )
+        self.framework.observe(self.on.remove, self._on_remove)
 
     def _on_collect_status(self, event: CollectStatusEvent):
         """Collect unit status."""
@@ -93,6 +94,15 @@ class SdcoreUpfCharm(ops.CharmBase):
         self._generate_upf_config_file()
         self._start_upf_service()
         self._update_fiveg_n4_relation_data()
+
+    def _on_remove(self, event: RemoveEvent):
+        """Stop the upf services and uninstall snap."""
+        snap_cache = SnapCache()
+        upf_snap = snap_cache[UPF_SNAP_NAME]
+        upf_snap.stop(services=["bessd"])
+        upf_snap.stop(services=["routectl"])
+        upf_snap.stop(services=["pfcpiface"])
+        upf_snap.ensure(SnapState.Absent)
 
     def _on_fiveg_n4_request(self, event) -> None:
         """Handle 5G N4 requests events.
