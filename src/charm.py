@@ -15,8 +15,7 @@ from charms.operator_libs_linux.v2.snap import SnapCache, SnapError, SnapState
 from charms.sdcore_upf_k8s.v0.fiveg_n4 import N4Provides
 from jinja2 import Environment, FileSystemLoader
 from machine import ExecError, Machine
-from ops.charm import CollectStatusEvent
-from ops.model import ActiveStatus, BlockedStatus, WaitingStatus
+from ops import ActiveStatus, BlockedStatus, CollectStatusEvent, WaitingStatus
 from upf_network import UPFNetwork
 
 UPF_SNAP_NAME = "sdcore-upf"
