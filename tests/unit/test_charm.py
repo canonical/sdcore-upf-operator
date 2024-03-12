@@ -44,17 +44,17 @@ class TestCharm(unittest.TestCase):
         self.addCleanup(self.harness.cleanup)
         self.harness.begin()
 
-    def test_given_unit_is_not_leader_when_config_changed_then_status_is_blocked(self):
+    def test_given_unit_is_not_leader_when_evaluate_status_then_status_is_blocked(self):
         self.harness.set_leader(False)
 
-        self.harness.update_config()
+        self.harness.evaluate_status()
 
         self.assertEqual(
             self.harness.model.unit.status,
             ops.BlockedStatus("Scaling is not implemented for this charm"),
         )
 
-    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    @patch("charm.SnapCache")
     def test_given_upf_snap_uninstalled_when_configure_then_upf_snap_installed(
         self, mock_snap_cache
     ):
@@ -73,7 +73,7 @@ class TestCharm(unittest.TestCase):
         )
         upf_snap.hold.assert_called()
 
-    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    @patch("charm.SnapCache")
     def test_given_upf_service_not_started_when_config_changed_then_service_started(
         self, mock_snap_cache
     ):
@@ -94,7 +94,7 @@ class TestCharm(unittest.TestCase):
 
     @patch("charm.time.sleep")
     @patch("charm.time.time")
-    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    @patch("charm.SnapCache")
     def test_bess_configuration_timeout_error_raised_on_exec_error(
         self, mock_snap_cache, mock_time, mock_sleep
     ):
@@ -116,18 +116,18 @@ class TestCharm(unittest.TestCase):
         with self.assertRaises(TimeoutError):
             self.harness.update_config()
 
-    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    @patch("charm.SnapCache")
     def test_given_unit_is_leader_when_config_changed_then_status_is_active(self, mock_snap_cache):
         self.harness.set_leader(True)
         upf_snap = MagicMock()
         snap_cache = {"sdcore-upf": upf_snap}
         mock_snap_cache.return_value = snap_cache
 
-        self.harness.update_config()
+        self.harness.evaluate_status()
 
         self.assertEqual(self.harness.model.unit.status, ops.ActiveStatus())
 
-    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    @patch("charm.SnapCache")
     def test_given_config_file_not_written_when_config_changed_then_config_file_is_written(
         self, _
     ):
@@ -142,7 +142,7 @@ class TestCharm(unittest.TestCase):
         assert kwargs["path"] == "/var/snap/sdcore-upf/common/upf.json"
         assert json.loads(kwargs["source"]) == json.loads(expected_config_file_content)
 
-    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    @patch("charm.SnapCache")
     def test_given_config_file_written_with_different_content_when_config_changed_then_new_config_file_is_written(
         self, _
     ):
@@ -157,7 +157,7 @@ class TestCharm(unittest.TestCase):
         assert kwargs["path"] == "/var/snap/sdcore-upf/common/upf.json"
         assert json.loads(kwargs["source"]) == json.loads(expected_config_file_content)
 
-    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    @patch("charm.SnapCache")
     def test_given_config_file_written_with_identical_content_when_config_changed_then_new_config_file_not_written(
         self, _
     ):
@@ -169,16 +169,19 @@ class TestCharm(unittest.TestCase):
 
         self.mock_machine.push.assert_not_called()
 
-    def test_given_invalid_config_when_config_changed_then_status_is_blocked(self):
+    @patch("charm.SnapCache")
+    def test_given_invalid_config_when_config_changed_then_status_is_blocked(self, _):
         self.harness.set_leader(True)
         self.harness.update_config({"gnb-subnet": "not an ip address"})
+
+        self.harness.evaluate_status()
 
         self.assertEqual(
             self.harness.model.unit.status,
             ops.BlockedStatus("The following configurations are not valid: ['gnb-subnet']"),
         )
 
-    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    @patch("charm.SnapCache")
     def test_given_network_interfaces_not_valid_when_config_changed_then_status_is_blocked(
         self, _
     ):
@@ -187,14 +190,15 @@ class TestCharm(unittest.TestCase):
             "eth1",
         ]
         self.harness.set_leader(True)
-        self.harness.update_config()
+
+        self.harness.evaluate_status()
 
         self.assertEqual(
             self.harness.model.unit.status,
             ops.BlockedStatus("Network interfaces are not valid: ['eth0', 'eth1']"),
         )
 
-    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    @patch("charm.SnapCache")
     def test_given_network_interfaces_valid_when_config_changed_then_routes_are_created(self, _):
         gnb_subnet = "192.168.251.0/24"
         self.harness.set_leader(True)
@@ -225,7 +229,7 @@ class TestCharm(unittest.TestCase):
 
     @patch("charms.sdcore_upf_k8s.v0.fiveg_n4.N4Provides.publish_upf_n4_information")
     @patch("charm.PFCP_PORT", TEST_PFCP_PORT)
-    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    @patch("charm.SnapCache")
     def test_given_external_upf_hostname_config_set_and_fiveg_n4_relation_created_when_fiveg_n4_request_then_upf_hostname_and_n4_port_is_published(  # noqa: E501
         self, patched_snap_cache, patched_publish_upf_n4_information
     ):
@@ -249,7 +253,7 @@ class TestCharm(unittest.TestCase):
 
     @patch("charms.sdcore_upf_k8s.v0.fiveg_n4.N4Provides.publish_upf_n4_information")
     @patch("charm.PFCP_PORT", TEST_PFCP_PORT)
-    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    @patch("charm.SnapCache")
     def test_given_external_upf_hostname_config_not_set_and_fiveg_n4_relation_created_when_fiveg_n4_request_then_upf_hostname_and_n4_port_is_published(  # noqa: E501
         self, patched_snap_cache, patched_publish_upf_n4_information
     ):
@@ -268,7 +272,7 @@ class TestCharm(unittest.TestCase):
 
     @patch("charms.sdcore_upf_k8s.v0.fiveg_n4.N4Provides.publish_upf_n4_information")
     @patch("charm.PFCP_PORT", TEST_PFCP_PORT)
-    @patch("charms.operator_libs_linux.v2.snap.SnapCache")
+    @patch("charm.SnapCache")
     def test_given_fiveg_n4_relation_exists_when_external_upf_hostname_config_changed_then_new_upf_hostname_is_published(  # noqa: E501
         self, patched_snap_cache, patched_publish_upf_n4_information
     ):
