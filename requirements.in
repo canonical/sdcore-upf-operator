@@ -1,5 +1,7 @@
+cosl
 jinja2
 ops
-pydantic
+# cos-agent requires pydantic<2
+pydantic<2
 pyroute2
 python-iptables

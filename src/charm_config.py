@@ -5,23 +5,20 @@
 
 import dataclasses
 import logging
+from ipaddress import ip_network
 from typing import Optional
 
 import ops
 from pydantic import (  # pylint: disable=no-name-in-module,import-error
     BaseModel,
-    ConfigDict,
     Field,
     StrictStr,
     ValidationError,
+    validator,
 )
 from pydantic.networks import IPvAnyNetwork
-from typing_extensions import TypeAlias
 
 logger = logging.getLogger(__name__)
-
-
-NetworkType: TypeAlias = "str | bytes | int | tuple[str | bytes | int, str | int]"
 
 
 class CharmConfigInvalidError(Exception):
@@ -44,14 +41,23 @@ def to_kebab(name: str) -> str:
 class UpfConfig(BaseModel):  # pylint: disable=too-few-public-methods
     """Represent UPF operator builtin configuration values."""
 
-    model_config = ConfigDict(alias_generator=to_kebab, use_enum_values=True)
+    class Config:
+        """Represent config for Pydantic model."""
+        alias_generator = to_kebab
 
     dnn: StrictStr = Field(default="internet", min_length=1)
-    gnb_subnet: IPvAnyNetwork = IPvAnyNetwork("192.168.251.0/24")  # type: ignore
+    gnb_subnet: IPvAnyNetwork = Field(default="192.168.251.0/24")  # type: ignore
     access_interface_name: StrictStr = Field(default="eth0")
     core_interface_name: StrictStr = Field(default="eth1")
     external_upf_hostname: StrictStr = Field(default="")
     enable_hw_checksum: bool = True
+
+    @validator("gnb_subnet")
+    @classmethod
+    def validate_ip_subnet(cls, value):
+        """Validate that IP network address is valid."""
+        ip_network(value, strict=True)
+        return value
 
 
 @dataclasses.dataclass
