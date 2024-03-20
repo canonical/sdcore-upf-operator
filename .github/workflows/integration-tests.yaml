@@ -18,10 +18,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup upterm session
-        uses: lhotari/action-upterm@v1
-        with:
-          limit-access-to-actor: true
+#      - name: Setup upterm session
+#        uses: lhotari/action-upterm@v1
+#        with:
+#          limit-access-to-actor: true
 
       - name: Setup operator environment
         run: |
@@ -29,7 +29,7 @@ jobs:
           if ! [ -f ~/.ssh/id_rsa ]; then
             ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
             cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-            ssh-copy-id -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@localhost
+            ssh-copy-id -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa $USER@localhost
           fi
           
           echo "# Initialize LXD"
