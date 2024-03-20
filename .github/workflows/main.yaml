@@ -19,7 +19,7 @@ jobs:
     uses: canonical/sdcore-github-workflows/.github/workflows/unit-test.yaml@main
 
   integration-test:
-    uses: ./integration-tests.yaml
+    uses: ./.github/workflows/integration-tests.yaml
     with:
       charm-file-name: "sdcore-upf_ubuntu-22.04-amd64.charm"
 
