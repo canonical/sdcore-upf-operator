@@ -22,6 +22,7 @@ async def test_given_upf_machine_charm_built_when_deploy_than_charm_goes_to_acti
     ops_test: OpsTest
 ):
     charm = await ops_test.build_charm(".")
+    await ops_test.model.connect(model_name=MODEL_NAME)
 
     with ops_test.model_context(MODEL_NAME):
         await asyncio.gather(
