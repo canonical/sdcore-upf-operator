@@ -66,3 +66,9 @@ jobs:
 
       - name: Run integration tests
         run: tox -e integration
+
+      - name: Cleanup Multipass
+        if: always()
+        run: |
+          multipass delete --all
+          multipass purge
