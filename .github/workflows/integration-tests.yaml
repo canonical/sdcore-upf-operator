@@ -34,7 +34,6 @@ jobs:
           
           echo "# Install Multipass"
           /usr/bin/sudo snap install multipass
-          sleep 10  # Time for Multipass to initialize
           while ! multipass set local.driver=lxd; do echo "Retrying setting local.driver for Multipass"; done
           /usr/bin/sudo snap restart multipass.multipassd
           /usr/bin/sudo cp /var/snap/multipass/common/data/multipassd/ssh-keys/id_rsa ~
@@ -61,7 +60,7 @@ jobs:
           juju add-model upf-integration
           
           echo "# Prepare UPF VM"
-          /usr/bin/sudo multipass launch 22.04 --name upf --network access --network core --memory 8G --cpus 4
+          multipass launch 22.04 --name upf --network access --network core --memory 8G --cpus 4
           ssh-keyscan -H $(multipass info upf | grep "IPv4" | awk '{ print $2 }') >> ~/.ssh/known_hosts
           juju add-machine ssh:ubuntu@$(multipass info upf | grep "IPv4" | awk '{ print $2 }') --private-key ~/id_rsa    
 
