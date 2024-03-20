@@ -60,7 +60,10 @@ jobs:
           juju add-model upf-integration
           
           echo "# Prepare UPF VM"
-          multipass launch 22.04 --name upf --network access --network core --memory 8G --cpus 4
+          while ! multipass launch 22.04 --name upf --network access --network core --memory 8G --cpus 4; do 
+            sleep 5 
+            echo "Retrying VM creation"
+          done
           ssh-keyscan -H $(multipass info upf | grep "IPv4" | awk '{ print $2 }') >> ~/.ssh/known_hosts
           juju add-machine ssh:ubuntu@$(multipass info upf | grep "IPv4" | awk '{ print $2 }') --private-key ~/id_rsa    
 
