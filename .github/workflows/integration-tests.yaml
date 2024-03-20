@@ -13,15 +13,10 @@ on:
 
 jobs:
   integration-test:
-    runs-on: ubuntu-latest
+    runs-on: upf-runner
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup upterm session
-        uses: lhotari/action-upterm@v1
-        with:
-          limit-access-to-actor: true
 
       - name: Setup operator environment
         run: |
@@ -34,13 +29,13 @@ jobs:
           
           echo "# Initialize LXD"
           /usr/bin/sudo lxd init --auto
-          /usr/bin/sudo lxc network create access --type=bridge ipv4.address=192.168.252.1/24 || true
-          /usr/bin/sudo lxc network create core --type=bridge ipv4.address=192.168.250.1/24 || true
+          lxc network create access --type=bridge ipv4.address=192.168.252.1/24 || true
+          lxc network create core --type=bridge ipv4.address=192.168.250.1/24 || true
           
           echo "# Install Multipass"
           /usr/bin/sudo snap install multipass
           sleep 10  # Time for Multipass to initialize
-          /usr/bin/sudo multipass set local.driver=lxd
+          multipass set local.driver=lxd
           /usr/bin/sudo snap restart multipass.multipassd
           /usr/bin/sudo cp /var/snap/multipass/common/data/multipassd/ssh-keys/id_rsa ~
           /usr/bin/sudo chown $USER:$USER ~/id_rsa
@@ -67,8 +62,8 @@ jobs:
           
           echo "# Prepare UPF VM"
           /usr/bin/sudo multipass launch 22.04 --name upf --network access --network core --memory 8G --cpus 4
-          ssh-keyscan -H $(sudo multipass info upf | grep "IPv4" | awk '{ print $2 }') >> ~/.ssh/known_hosts
-          juju add-machine ssh:ubuntu@$(sudo multipass info upf | grep "IPv4" | awk '{ print $2 }') --private-key ~/id_rsa    
+          ssh-keyscan -H $(multipass info upf | grep "IPv4" | awk '{ print $2 }') >> ~/.ssh/known_hosts
+          juju add-machine ssh:ubuntu@$(multipass info upf | grep "IPv4" | awk '{ print $2 }') --private-key ~/id_rsa    
 
       - name: Run integration tests
         run: tox -e integration
