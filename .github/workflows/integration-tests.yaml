@@ -24,7 +24,7 @@ jobs:
           if ! [ -f ~/.ssh/id_rsa ]; then
             ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
             cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-            ssh-copy-id -o StrictHostKeyChecking=no ubuntu@localhost
+            ssh-copy-id -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@localhost
           fi
           
           echo "# Initialize LXD"
