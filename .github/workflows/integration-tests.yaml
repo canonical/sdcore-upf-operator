@@ -18,10 +18,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup upterm session
-        uses: lhotari/action-upterm@v1
-        with:
-          limit-access-to-actor: true
+#      - name: Setup upterm session
+#        uses: lhotari/action-upterm@v1
+#        with:
+#          limit-access-to-actor: true
 
       - name: Setup operator environment
         run: |
@@ -60,15 +60,15 @@ jobs:
           /usr/bin/sudo snap install charmcraft --classic --channel=latest/stable
           
           echo "# Bootstrap controller"
-          mkdir -p /home/ubuntu/.local/share
-          juju add-cloud upf-local -f resources/upf-local-cloud.yaml || true
+          mkdir -p ~/.local/share
+          juju add-cloud upf-local -f ./.github/workflows/resources/upf-local-cloud.yaml || true
           juju bootstrap upf-local || true
           juju add-model upf-integration
           
           echo "# Prepare UPF VM"
-          multipass launch 22.04 --name upf --network access --network core --memory 8G --cpus 4
-          ssh-keyscan -H $(multipass info upf | grep "IPv4" | awk '{ print $2 }') >> ~/.ssh/known_hosts
-          juju add-machine ssh:ubuntu@$(multipass info upf | grep "IPv4" | awk '{ print $2 }') --private-key ~/id_rsa    
+          /usr/bin/sudo multipass launch 22.04 --name upf --network access --network core --memory 8G --cpus 4
+          ssh-keyscan -H $(sudo multipass info upf | grep "IPv4" | awk '{ print $2 }') >> ~/.ssh/known_hosts
+          juju add-machine ssh:ubuntu@$(sudo multipass info upf | grep "IPv4" | awk '{ print $2 }') --private-key ~/id_rsa    
 
       - name: Run integration tests
         run: tox -e integration
