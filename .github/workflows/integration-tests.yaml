@@ -61,7 +61,7 @@ jobs:
           
           echo "# Bootstrap controller"
           mkdir -p ~/.local/share
-          juju add-cloud upf-local -f ./.github/workflows/resources/upf-local-cloud.yaml || true
+          juju add-cloud upf-local --client -f ./.github/workflows/resources/upf-local-cloud.yaml || true
           juju bootstrap upf-local || true
           juju add-model upf-integration
           
