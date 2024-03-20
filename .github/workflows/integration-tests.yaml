@@ -33,9 +33,9 @@ jobs:
           fi
           
           echo "# Initialize LXD"
-          lxd init --auto
-          lxc network create access --type=bridge ipv4.address=192.168.252.1/24 || true
-          lxc network create core --type=bridge ipv4.address=192.168.250.1/24 || true
+          /usr/bin/sudo lxd init --auto
+          /usr/bin/sudo lxc network create access --type=bridge ipv4.address=192.168.252.1/24 || true
+          /usr/bin/sudo lxc network create core --type=bridge ipv4.address=192.168.250.1/24 || true
           
           echo "# Install Multipass"
           /usr/bin/sudo snap install multipass
