@@ -1,0 +1,69 @@
+# Copyright 2024 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+name: Integration test
+
+on:
+  workflow_call:
+    inputs:
+      charm-file-name:
+        description: Tested charm file name
+        required: true
+        type: string
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup operator environment
+        run: |
+          echo "# Configure SSH"
+          if ! [ -f ~/.ssh/id_rsa ]; then
+            ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
+            cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+            ssh-copy-id -o StrictHostKeyChecking=no ubuntu@localhost
+          fi
+          
+          echo "# Initialize LXD"
+          /usr/bin/sudo lxd init --auto
+          lxc network create access --type=bridge ipv4.address=192.168.252.1/24 || true
+          lxc network create core --type=bridge ipv4.address=192.168.250.1/24 || true
+          
+          echo "# Install Multipass"
+          /usr/bin/sudo snap install multipass
+          sleep 10  # Time for Multipass to initialize
+          multipass set local.driver=lxd
+          /usr/bin/sudo snap restart multipass.multipassd
+          /usr/bin/sudo cp /var/snap/multipass/common/data/multipassd/ssh-keys/id_rsa ~
+          /usr/bin/sudo chown $USER:$USER ~/id_rsa
+          
+          echo "# Install tox"
+          /usr/bin/sudo apt update -yqq
+          /usr/bin/sudo apt install -yqq python3-pip
+          /usr/bin/sudo pip3 install tox
+
+          echo "# Install Juju"
+          /usr/bin/sudo snap install juju --channel=3.4/stable
+
+          echo "# Install juju-crashdump"
+          /usr/bin/sudo snap install juju-crashdump --classic --channel=latest
+
+          echo "# Install charmcraft"
+          /usr/bin/sudo snap install charmcraft --classic --channel=latest/stable
+          
+          echo "# Bootstrap controller"
+          mkdir -p /home/ubuntu/.local/share
+          juju add-cloud upf-local -f resources/upf-local-cloud.yaml || true
+          juju bootstrap upf-local || true
+          juju add-model upf-integration
+          
+          echo "# Prepare UPF VM"
+          multipass launch 22.04 --name upf --network access --network core --memory 8G --cpus 4
+          ssh-keyscan -H $(multipass info upf | grep "IPv4" | awk '{ print $2 }') >> ~/.ssh/known_hosts
+          juju add-machine ssh:ubuntu@$(multipass info upf | grep "IPv4" | awk '{ print $2 }') --private-key ~/id_rsa    
+
+      - name: Run integration tests
+        run: tox -e integration

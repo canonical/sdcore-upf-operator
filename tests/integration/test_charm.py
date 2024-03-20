@@ -14,13 +14,17 @@ logger = logging.getLogger(__name__)
 
 METADATA = yaml.safe_load(Path("./charmcraft.yaml").read_text())
 APP_NAME = METADATA["name"]
+MODEL_NAME = "upf-integration"
 
 
 @pytest.mark.abort_on_fail
-async def test_given_build_when_deploy_on_machine_with_1_interface_than_blocked(ops_test: OpsTest):
+async def test_given_upf_machine_charm_built_when_deploy_than_charm_goes_to_active_status(
+    ops_test: OpsTest
+):
     charm = await ops_test.build_charm(".")
 
-    await asyncio.gather(
-        ops_test.model.deploy(charm, application_name=APP_NAME),
-        ops_test.model.wait_for_idle(apps=[APP_NAME], status="blocked", timeout=1000),
-    )
+    with ops_test.model_context(MODEL_NAME):
+        await asyncio.gather(
+            ops_test.model.deploy(charm, application_name=APP_NAME, to=0),
+            ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000),
+        )
