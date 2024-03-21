@@ -224,7 +224,7 @@ class SdcoreUpfCharm(ops.CharmBase):
                 logger.info(message)
                 logger.debug(f"{message}: {stdout}")
                 if not stderr:
-                    logger.error(f"{message}: {stdout}")
+                    logger.error(f"{message}: {stderr}")
                 return
             except ExecError as e:
                 logger.info(f"Failed running configuration for bess: {e}")

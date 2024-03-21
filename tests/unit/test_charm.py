@@ -35,6 +35,9 @@ class TestCharm(unittest.TestCase):
     def setUp(self, patch_machine, patch_network):
         self.mock_machine = MagicMock()
         self.mock_machine.pull.return_value = ""
+        self.mock_process = MagicMock()
+        self.mock_process.wait_output.return_value = ("", "")
+        self.mock_machine.exec.return_value = self.mock_process
         patch_machine.return_value = self.mock_machine
         self.mock_upf_network = MagicMock()
         self.mock_upf_network.get_invalid_network_interfaces.return_value = []
@@ -70,7 +73,7 @@ class TestCharm(unittest.TestCase):
         upf_snap.ensure.assert_called_with(
             SnapState.Latest,
             channel="latest/edge",
-            revision="7",
+            revision="16",
             devmode=True,
         )
         upf_snap.hold.assert_called()
@@ -132,9 +135,8 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(self.harness.model.unit.status, ops.ActiveStatus())
 
     @patch("charm.SnapCache")
-    @patch("charm._start_upf_service")
     def test_given_config_file_not_written_when_config_changed_then_config_file_is_written(
-        self, *_
+        self, _
     ):
         self.harness.set_leader(True)
         self.mock_machine.exists.return_value = False
