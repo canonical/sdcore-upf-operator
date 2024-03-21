@@ -64,6 +64,7 @@ jobs:
             sleep 5 
             echo "Retrying VM creation"
           done
+          multipass exec upf -- sudo apt install net-tools
           ssh-keyscan -H $(multipass info upf | grep "IPv4" | awk '{ print $2 }') >> ~/.ssh/known_hosts
           juju add-machine ssh:ubuntu@$(multipass info upf | grep "IPv4" | awk '{ print $2 }') --private-key ~/id_rsa    
 
@@ -97,3 +98,10 @@ jobs:
         run: |
           multipass delete --all
           multipass purge
+
+      - name: Cleanup Juju models
+        if: always()
+        run: |
+          for model in $(juju models | grep test-charm | awk '{ print $1 }'); do
+            juju destroy-model $model --destroy-storage --force --no-wait --no-prompt 
+          done
