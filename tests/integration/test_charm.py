@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 METADATA = yaml.safe_load(Path("./charmcraft.yaml").read_text())
 APP_NAME = METADATA["name"]
-MODEL_NAME = "test"
+MODEL_NAME = "upf-integration"
 UPF_CONFIG_FILE_PATH = "/var/snap/sdcore-upf/common/upf.json"
 
 
