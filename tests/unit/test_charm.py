@@ -38,7 +38,9 @@ class TestCharm(unittest.TestCase):
         patch_machine.return_value = self.mock_machine
         self.mock_upf_network = MagicMock()
         self.mock_upf_network.get_invalid_network_interfaces.return_value = []
-        self.mock_upf_network.core_interface.get_ip_address.return_value = "192.168.250.3"
+        self.mock_upf_network.core_interface.get_ip_address.return_value = (
+            "192.168.250.3"
+        )
         patch_network.return_value = self.mock_upf_network
         self.harness = ops.testing.Harness(SdcoreUpfCharm)
         self.addCleanup(self.harness.cleanup)
@@ -117,7 +119,9 @@ class TestCharm(unittest.TestCase):
             self.harness.update_config()
 
     @patch("charm.SnapCache")
-    def test_given_unit_is_leader_when_config_changed_then_status_is_active(self, mock_snap_cache):
+    def test_given_unit_is_leader_when_config_changed_then_status_is_active(
+        self, mock_snap_cache
+    ):
         self.harness.set_leader(True)
         upf_snap = MagicMock()
         snap_cache = {"sdcore-upf": upf_snap}
@@ -128,8 +132,9 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(self.harness.model.unit.status, ops.ActiveStatus())
 
     @patch("charm.SnapCache")
+    @patch("charm._start_upf_service")
     def test_given_config_file_not_written_when_config_changed_then_config_file_is_written(
-        self, _
+        self, *_
     ):
         self.harness.set_leader(True)
         self.mock_machine.exists.return_value = False
@@ -163,7 +168,9 @@ class TestCharm(unittest.TestCase):
     ):
         self.harness.set_leader(True)
         self.mock_machine.exists.return_value = True
-        self.mock_machine.pull.return_value = read_file("tests/unit/expected_upf.json").strip()
+        self.mock_machine.pull.return_value = read_file(
+            "tests/unit/expected_upf.json"
+        ).strip()
 
         self.harness.update_config()
 
@@ -178,7 +185,9 @@ class TestCharm(unittest.TestCase):
 
         self.assertEqual(
             self.harness.model.unit.status,
-            ops.BlockedStatus("The following configurations are not valid: ['gnb-subnet']"),
+            ops.BlockedStatus(
+                "The following configurations are not valid: ['gnb-subnet']"
+            ),
         )
 
     @patch("charm.SnapCache")
@@ -199,7 +208,9 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("charm.SnapCache")
-    def test_given_network_interfaces_valid_when_config_changed_then_routes_are_created(self, _):
+    def test_given_network_interfaces_valid_when_config_changed_then_routes_are_created(
+        self, _
+    ):
         gnb_subnet = "192.168.251.0/24"
         self.harness.set_leader(True)
         self.harness.update_config(
@@ -286,7 +297,9 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation_unit(n4_relation_id, "n4_requirer_app/0")
         expected_calls = [
             call(
-                relation_id=n4_relation_id, upf_hostname="whatever.com", upf_n4_port=TEST_PFCP_PORT
+                relation_id=n4_relation_id,
+                upf_hostname="whatever.com",
+                upf_n4_port=TEST_PFCP_PORT,
             ),
             call(
                 relation_id=n4_relation_id,
@@ -302,7 +315,9 @@ class TestCharm(unittest.TestCase):
         patched_publish_upf_n4_information.assert_has_calls(expected_calls)
 
     @patch("charm.SnapCache")
-    def test_given_upf_installed_when_remove_then_snap_removed(self, patched_snap_cache):
+    def test_given_upf_installed_when_remove_then_snap_removed(
+        self, patched_snap_cache
+    ):
         self.harness.set_leader(True)
         upf_snap = MagicMock()
         snap_cache = {"sdcore-upf": upf_snap}

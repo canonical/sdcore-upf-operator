@@ -208,7 +208,6 @@ class SdcoreUpfCharm(ops.CharmBase):
 
     def _run_bess_configuration(self) -> None:
         """Run bessd configuration in workload."""
-
         command = (
             "sdcore-upf.bessctl run /snap/sdcore-upf/current/opt/bess/bessctl/conf/up4"
         )
