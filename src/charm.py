@@ -15,12 +15,18 @@ from charms.operator_libs_linux.v2.snap import SnapCache, SnapError, SnapState
 from charms.sdcore_upf_k8s.v0.fiveg_n4 import N4Provides
 from jinja2 import Environment, FileSystemLoader
 from machine import ExecError, Machine
-from ops import ActiveStatus, BlockedStatus, CollectStatusEvent, RemoveEvent, WaitingStatus
+from ops import (
+    ActiveStatus,
+    BlockedStatus,
+    CollectStatusEvent,
+    RemoveEvent,
+    WaitingStatus,
+)
 from upf_network import UPFNetwork
 
 UPF_SNAP_NAME = "sdcore-upf"
 UPF_SNAP_CHANNEL = "latest/edge"
-UPF_SNAP_REVISION = "7"
+UPF_SNAP_REVISION = "16"
 UPF_CONFIG_FILE_NAME = "upf.json"
 UPF_CONFIG_PATH = "/var/snap/sdcore-upf/common"
 PFCP_PORT = 8805
@@ -65,7 +71,9 @@ class SdcoreUpfCharm(ops.CharmBase):
             return
         if invalid_network_interfaces := self._network.get_invalid_network_interfaces():
             event.add_status(
-                BlockedStatus(f"Network interfaces are not valid: {invalid_network_interfaces}")
+                BlockedStatus(
+                    f"Network interfaces are not valid: {invalid_network_interfaces}"
+                )
             )
             return
         if not self._network.is_configured():
@@ -76,6 +84,9 @@ class SdcoreUpfCharm(ops.CharmBase):
             return
         if not self._upf_service_started():
             event.add_status(WaitingStatus("Waiting for UPF service to start"))
+            return
+        if not self._is_bessd_grpc_service_ready():
+            event.add_status(WaitingStatus("Waiting for bessd gRPC service to start"))
             return
         event.add_status(ActiveStatus())
 
@@ -143,6 +154,8 @@ class SdcoreUpfCharm(ops.CharmBase):
 
     def _install_upf_snap(self) -> None:
         """Install the UPF snap in the workload."""
+        if self._upf_snap_installed():
+            return
         try:
             snap_cache = SnapCache()
             upf_snap = snap_cache[UPF_SNAP_NAME]
@@ -155,14 +168,21 @@ class SdcoreUpfCharm(ops.CharmBase):
             upf_snap.hold()
             logger.info("UPF snap installed")
         except SnapError as e:
-            logger.error("An exception occurred when installing the UPF snap. Reason: %s", str(e))
+            logger.error(
+                "An exception occurred when installing the UPF snap. Reason: %s", str(e)
+            )
             raise e
 
     def _upf_snap_installed(self) -> bool:
         """Check if the UPF snap is installed."""
         snap_cache = SnapCache()
         upf_snap = snap_cache[UPF_SNAP_NAME]
-        return upf_snap.state == SnapState.Latest
+        logger.info(f"{upf_snap.state} == {SnapState.Latest}")
+        logger.info(f"{upf_snap.revision} == {UPF_SNAP_REVISION}")
+        return (
+            upf_snap.state == SnapState.Latest
+            and upf_snap.revision == UPF_SNAP_REVISION
+        )
 
     def _start_upf_service(self) -> None:
         """Start the UPF service."""
@@ -170,6 +190,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         upf_snap = snap_cache[UPF_SNAP_NAME]
         upf_snap.start(services=["bessd"])
         upf_snap.start(services=["routectl"])
+        self._wait_for_bessd_grpc_service_to_be_ready()
         self._run_bess_configuration()
         upf_snap.start(services=["pfcpiface"])
         logger.info("UPF service started")
@@ -187,24 +208,81 @@ class SdcoreUpfCharm(ops.CharmBase):
 
     def _run_bess_configuration(self) -> None:
         """Run bessd configuration in workload."""
-        initial_time = time.time()
-        timeout = 300
-        logger.info("Starting configuration of the `bessd` service")
-        command = "sdcore-upf.bessctl run /snap/sdcore-upf/current/up4"
-        while time.time() - initial_time <= timeout:
+
+        command = (
+            "sdcore-upf.bessctl run /snap/sdcore-upf/current/opt/bess/bessctl/conf/up4"
+        )
+        logger.info(f"Command={command}")
+        if not self._is_bessd_configured():
+            logger.info("Starting configuration of the `bessd` service")
             process = self._machine.exec(
-                command=command.split(),
+                command=command,
                 timeout=10,
             )
             try:
-                process.wait_output()
-                logger.info("Service `bessd` configured")
+                (stdout, stderr) = process.wait_output()
+                message = "Service `bessd` configured"
+                logger.info(message)
+                logger.debug(f"{message}: {stdout}")
+                if not stderr:
+                    logger.error(f"{message}: {stdout}")
                 return
-            except ExecError:
-                logger.info("Failed running configuration for bess")
-                time.sleep(2)
+            except ExecError as e:
+                logger.info(f"Failed running configuration for bess: {e}")
 
-        raise TimeoutError("Timed out trying to run configuration for bess")
+    def _wait_for_bessd_grpc_service_to_be_ready(self, timeout: float = 60):
+        initial_time = time.time()
+
+        while not self._is_bessd_grpc_service_ready():
+            if time.time() - initial_time > timeout:
+                raise TimeoutError(
+                    "Timed out waiting for bessd gRPC server to become ready"
+                )
+            time.sleep(2)
+
+    def _is_bessd_grpc_service_ready(self) -> bool:
+        """Check if bessd grpc service is readu
+
+        Examines the output from bessctl to see if it is able to communicate
+        with bessd. This indicates the service is ready to accept configuration
+        commands.
+
+        Returns:
+            bool:   True/False
+        """
+        command = "sdcore-upf.bessctl show version"
+        process = self._machine.exec(
+            command=command,
+            timeout=2,
+        )
+        try:
+            process.wait_output()
+            return True
+        except ExecError as e:
+            logger.debug(f"Error executing {command}: {e}")
+            return False
+
+    def _is_bessd_configured(self) -> bool:
+        """Check if bessd has been configured
+
+        Examines the output from bessctl to show worker. If there is no
+        active worker, bessd is assumed not to be configured.
+
+        Returns:
+            bool:   True/False
+        """
+        command = "sdcore-upf.bessctl show worker"
+        process = self._machine.exec(
+            command=command,
+            timeout=10,
+        )
+        try:
+            (stdout, stderr) = process.wait_output()
+            logger.info(f"bessd configured workers:\n{stdout}")
+            return True
+        except ExecError as e:
+            logger.info(f"Configuration check: {e}")
+            return False
 
     def _generate_upf_config_file(self) -> None:
         """Generate the UPF configuration file."""
@@ -223,8 +301,9 @@ class SdcoreUpfCharm(ops.CharmBase):
             pod_share_path=UPF_CONFIG_PATH,
             enable_hw_checksum=self._charm_config.enable_hw_checksum,
         )
-        if not self._upf_config_file_is_written() or not self._upf_config_file_content_matches(
-            content=content
+        if (
+            not self._upf_config_file_is_written()
+            or not self._upf_config_file_content_matches(content=content)
         ):
             self._write_upf_config_file(content=content)
 
@@ -234,7 +313,9 @@ class SdcoreUpfCharm(ops.CharmBase):
 
     def _upf_config_file_content_matches(self, content: str) -> bool:
         """Return whether the UPF config file content matches the provided content."""
-        existing_content = self._machine.pull(path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}")
+        existing_content = self._machine.pull(
+            path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}"
+        )
         try:
             return json.loads(existing_content) == json.loads(content)
         except json.JSONDecodeError:
@@ -242,7 +323,9 @@ class SdcoreUpfCharm(ops.CharmBase):
 
     def _write_upf_config_file(self, content: str) -> None:
         """Write the UPF config file to the workload."""
-        self._machine.push(path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}", source=content)
+        self._machine.push(
+            path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}", source=content
+        )
         logger.info("Pushed %s config file", UPF_CONFIG_FILE_NAME)
 
     def _get_upf_hostname(self) -> str:
