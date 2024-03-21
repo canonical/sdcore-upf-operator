@@ -105,7 +105,7 @@ async def test_given_upf_machine_charm_is_deployed_when_check_open_ports_then_pf
 
     open_ports = await machine.ssh("netstat -ulnp")
 
-    assert PFCP_PORT in open_ports
+    assert str(PFCP_PORT) in open_ports
 
 
 @pytest.mark.abort_on_fail
