@@ -151,7 +151,7 @@ class TestUPFMachineCharm:
             gnb_subnet, access_interface_name
         )
 
-        assert any([re.match(gnb_route_pattern, route) for route in routes.splitlines()])
+        assert any(re.match(gnb_route_pattern, route) for route in routes.splitlines())
 
     @pytest.mark.abort_on_fail
     async def test_given_upf_machine_charm_is_deployed_when_check_routes_then_default_route_for_core_interface_is_set(  # noqa: E501
@@ -163,11 +163,11 @@ class TestUPFMachineCharm:
         charm_config = await application.get_config()
         core_interface_name = charm_config["core-interface-name"]["value"]
         routes = await machine.ssh("ip route")
-        core_default_route_pattern = "^default via \d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3} dev %s proto static metric 110" % (  # noqa: E501
+        core_default_route_pattern = "^default via \d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3} dev %s proto static metric 110" % (  # noqa: E501, W605
             core_interface_name,
         )
 
-        assert any([re.match(core_default_route_pattern, route) for route in routes.splitlines()])
+        assert any(re.match(core_default_route_pattern, route) for route in routes.splitlines())
 
     @pytest.mark.abort_on_fail
     async def test_given_upf_machine_charm_is_deployed_when_charm_config_changed_then_upf_config_file_is_updated(  # noqa: E501
