@@ -25,8 +25,8 @@ from ops import (
 from upf_network import UPFNetwork
 
 UPF_SNAP_NAME = "sdcore-upf"
-UPF_SNAP_CHANNEL = "latest/edge"
-UPF_SNAP_REVISION = "16"
+UPF_SNAP_CHANNEL = "latest/edge/fix-missing-deps"
+UPF_SNAP_REVISION = "22"
 UPF_CONFIG_FILE_NAME = "upf.json"
 UPF_CONFIG_PATH = "/var/snap/sdcore-upf/common"
 PFCP_PORT = 8805
@@ -162,7 +162,7 @@ class SdcoreUpfCharm(ops.CharmBase):
             upf_snap.ensure(
                 SnapState.Latest,
                 channel=UPF_SNAP_CHANNEL,
-                revision=UPF_SNAP_REVISION,
+                # revision=UPF_SNAP_REVISION,
                 devmode=True,
             )
             upf_snap.hold()
@@ -180,8 +180,9 @@ class SdcoreUpfCharm(ops.CharmBase):
         logger.info(f"{upf_snap.state} == {SnapState.Latest}")
         logger.info(f"{upf_snap.revision} == {UPF_SNAP_REVISION}")
         return (
-            upf_snap.state == SnapState.Latest
-            and upf_snap.revision == UPF_SNAP_REVISION
+            upf_snap.state
+            == SnapState.Latest
+            # and upf_snap.revision == UPF_SNAP_REVISION
         )
 
     def _start_upf_service(self) -> None:
@@ -222,9 +223,9 @@ class SdcoreUpfCharm(ops.CharmBase):
                 (stdout, stderr) = process.wait_output()
                 message = "Service `bessd` configured"
                 logger.info(message)
-                logger.debug(f"{message}: {stdout}")
+                logger.debug(f"up4.bess: {stdout}")
                 if not stderr:
-                    logger.error(f"{message}: {stderr}")
+                    logger.error(f"up4.bess: {stderr}")
                 return
             except ExecError as e:
                 logger.info(f"Failed running configuration for bess: {e}")
