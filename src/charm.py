@@ -25,8 +25,8 @@ from ops import (
 from upf_network import UPFNetwork
 
 UPF_SNAP_NAME = "sdcore-upf"
-UPF_SNAP_CHANNEL = "latest/edge/fix-missing-deps"
-UPF_SNAP_REVISION = "22"
+UPF_SNAP_CHANNEL = "latest/edge"
+UPF_SNAP_REVISION = "28"
 UPF_CONFIG_FILE_NAME = "upf.json"
 UPF_CONFIG_PATH = "/var/snap/sdcore-upf/common"
 PFCP_PORT = 8805
@@ -104,6 +104,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         self._install_upf_snap()
         self._generate_upf_config_file()
         self._start_upf_service()
+        self._configure_upf_service()
         self._update_fiveg_n4_relation_data()
 
     def _on_remove(self, event: RemoveEvent):
@@ -162,7 +163,7 @@ class SdcoreUpfCharm(ops.CharmBase):
             upf_snap.ensure(
                 SnapState.Latest,
                 channel=UPF_SNAP_CHANNEL,
-                # revision=UPF_SNAP_REVISION,
+                revision=UPF_SNAP_REVISION,
                 devmode=True,
             )
             upf_snap.hold()
@@ -177,22 +178,19 @@ class SdcoreUpfCharm(ops.CharmBase):
         """Check if the UPF snap is installed."""
         snap_cache = SnapCache()
         upf_snap = snap_cache[UPF_SNAP_NAME]
-        logger.info(f"{upf_snap.state} == {SnapState.Latest}")
-        logger.info(f"{upf_snap.revision} == {UPF_SNAP_REVISION}")
         return (
-            upf_snap.state
-            == SnapState.Latest
-            # and upf_snap.revision == UPF_SNAP_REVISION
+            upf_snap.state == SnapState.Latest
+            and upf_snap.revision == UPF_SNAP_REVISION
         )
 
     def _start_upf_service(self) -> None:
         """Start the UPF service."""
+        if self._upf_service_started():
+            return
         snap_cache = SnapCache()
         upf_snap = snap_cache[UPF_SNAP_NAME]
         upf_snap.start(services=["bessd"])
         upf_snap.start(services=["routectl"])
-        self._wait_for_bessd_grpc_service_to_be_ready()
-        self._run_bess_configuration()
         upf_snap.start(services=["pfcpiface"])
         logger.info("UPF service started")
 
@@ -207,28 +205,29 @@ class SdcoreUpfCharm(ops.CharmBase):
             and upf_services["pfcpiface"]["active"]
         )
 
+    def _configure_upf_service(self) -> None:
+        self._wait_for_bessd_grpc_service_to_be_ready()
+        self._run_bess_configuration()
+
     def _run_bess_configuration(self) -> None:
         """Run bessd configuration in workload."""
-        command = (
-            "sdcore-upf.bessctl run /snap/sdcore-upf/current/opt/bess/bessctl/conf/up4"
+        if self._is_bessd_configured():
+            return
+
+        logger.info("Starting configuration of the `bessd` service")
+        process = self._machine.exec(
+            command="sdcore-upf.bessctl run /snap/sdcore-upf/current/opt/bess/bessctl/conf/up4",
+            timeout=10,
         )
-        logger.info(f"Command={command}")
-        if not self._is_bessd_configured():
-            logger.info("Starting configuration of the `bessd` service")
-            process = self._machine.exec(
-                command=command,
-                timeout=10,
-            )
-            try:
-                (stdout, stderr) = process.wait_output()
-                message = "Service `bessd` configured"
-                logger.info(message)
-                logger.debug(f"up4.bess: {stdout}")
-                if not stderr:
-                    logger.error(f"up4.bess: {stderr}")
-                return
-            except ExecError as e:
-                logger.info(f"Failed running configuration for bess: {e}")
+        try:
+            (stdout, stderr) = process.wait_output()
+            logger.info("Service `bessd` configuration script complete")
+            logger.debug(f"up4.bess: {stdout}")
+            if not stderr:
+                logger.error(f"up4.bess: {stderr}")
+            return
+        except ExecError as e:
+            logger.info(f"Failed running configuration for bess: {e}")
 
     def _wait_for_bessd_grpc_service_to_be_ready(self, timeout: float = 60):
         initial_time = time.time()
@@ -241,7 +240,7 @@ class SdcoreUpfCharm(ops.CharmBase):
             time.sleep(2)
 
     def _is_bessd_grpc_service_ready(self) -> bool:
-        """Check if bessd grpc service is readu
+        """Check if bessd grpc service is ready.
 
         Examines the output from bessctl to see if it is able to communicate
         with bessd. This indicates the service is ready to accept configuration
@@ -263,7 +262,7 @@ class SdcoreUpfCharm(ops.CharmBase):
             return False
 
     def _is_bessd_configured(self) -> bool:
-        """Check if bessd has been configured
+        """Check if bessd has been configured.
 
         Examines the output from bessctl to show worker. If there is no
         active worker, bessd is assumed not to be configured.
@@ -278,7 +277,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         )
         try:
             (stdout, stderr) = process.wait_output()
-            logger.info(f"bessd configured workers:\n{stdout}")
+            logger.debug(f"bessd configured workers:\n{stdout}")
             return True
         except ExecError as e:
             logger.info(f"Configuration check: {e}")
