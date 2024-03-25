@@ -222,12 +222,12 @@ class SdcoreUpfCharm(ops.CharmBase):
         try:
             (stdout, stderr) = process.wait_output()
             logger.info("Service `bessd` configuration script complete")
-            logger.debug(f"up4.bess: {stdout}")
-            if not stderr:
-                logger.error(f"up4.bess: {stderr}")
+            logger.debug("`up4.bess`: %s", stdout)
+            if isinstance(stderr, str) and len(stderr) > 0:
+                logger.error("`up4.bess`: %s", stderr)
             return
         except ExecError as e:
-            logger.info(f"Failed running configuration for bess: {e}")
+            logger.info("Failed running configuration for bess: %s", e)
 
     def _wait_for_bessd_grpc_service_to_be_ready(self, timeout: float = 60):
         initial_time = time.time()
@@ -258,7 +258,7 @@ class SdcoreUpfCharm(ops.CharmBase):
             process.wait_output()
             return True
         except ExecError as e:
-            logger.debug(f"Error executing {command}: {e}")
+            logger.info("gRPC Check: %s", e)
             return False
 
     def _is_bessd_configured(self) -> bool:
@@ -277,7 +277,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         )
         try:
             (stdout, stderr) = process.wait_output()
-            logger.debug(f"bessd configured workers:\n{stdout}")
+            logger.debug("bessd configured workers: %s", stdout)
             return True
         except ExecError as e:
             logger.info(f"Configuration check: {e}")

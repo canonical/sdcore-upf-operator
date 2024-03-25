@@ -84,6 +84,11 @@ class TestCharm(unittest.TestCase):
     ):
         self.harness.set_leader(True)
         upf_snap = MagicMock()
+        upf_snap.services = {
+            "bessd": {"active": False},
+            "routectl": {"active": False},
+            "pfcpiface": {"active": False},
+        }
         snap_cache = {"sdcore-upf": upf_snap}
         mock_snap_cache.return_value = snap_cache
 
@@ -97,6 +102,31 @@ class TestCharm(unittest.TestCase):
             ]
         )
 
+    @patch("charm.SnapCache")
+    def test_given_bessd_not_configured_when_config_changed_then_bessctl_run_called(
+        self, mock_snap_cache
+    ):
+        self.harness.set_leader(True)
+        upf_snap = MagicMock()
+        snap_cache = {"sdcore-upf": upf_snap}
+        mock_snap_cache.return_value = snap_cache
+        self.mock_process.wait_output.side_effect = [
+            MagicMock(),
+            ExecError(
+                command="configuration check",
+                exit_code=1,
+                stdout="mock to represent bessd not configured",
+                stderr="",
+            ),
+            ("stdout", "stderr"),
+        ]
+        self.harness.update_config()
+
+        self.assertEqual(
+            "sdcore-upf.bessctl run /snap/sdcore-upf/current/opt/bess/bessctl/conf/up4",
+            self.mock_machine.method_calls[-1].kwargs["command"],
+        )
+
     @patch("charm.time.sleep")
     @patch("charm.time.time")
     @patch("charm.SnapCache")
@@ -107,9 +137,7 @@ class TestCharm(unittest.TestCase):
         mock_sleep.return_value = None
         self.harness.set_leader(True)
         upf_snap = MagicMock()
-        mock_process = MagicMock()
-        self.mock_machine.exec.return_value = mock_process
-        mock_process.wait_output.side_effect = ExecError(
+        self.mock_process.wait_output.side_effect = ExecError(
             command="whatever",
             exit_code=1,
             stdout="",
