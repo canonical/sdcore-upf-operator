@@ -27,27 +27,25 @@ CORE_INTERFACE_NAME = "enp7s0"
 GRAFANA_AGENT_APPLICATION_NAME = "grafana-agent"
 
 
-@pytest.fixture(scope="module")
-async def deploy_grafana_agent(ops_test: OpsTest) -> None:
-    """Deploys grafana-agent-operator.
-
-    Args:
-        ops_test: Ops test Framework.
-    """
-    assert ops_test.model
-    await ops_test.model.deploy(
-        GRAFANA_AGENT_APPLICATION_NAME,
-        application_name=GRAFANA_AGENT_APPLICATION_NAME,
-        trust=True,
-    )
-
-
 class TestUPFMachineCharm:
     @pytest.fixture(autouse=True)
     @pytest.mark.abort_on_fail
     async def setup(self):
         self.model = Model()
         await self.model.connect(model_name=MODEL_NAME)
+
+    @pytest.fixture(scope="module")
+    async def deploy_grafana_agent(self, ops_test: OpsTest) -> None:
+        """Deploys grafana-agent-operator.
+
+        Args:
+            ops_test: Ops test Framework.
+        """
+        await ops_test.model.deploy(
+            GRAFANA_AGENT_APPLICATION_NAME,
+            application_name=GRAFANA_AGENT_APPLICATION_NAME,
+            trust=True,
+        )
 
     @pytest.mark.abort_on_fail
     async def test_given_upf_machine_charm_built_when_deploy_than_charm_goes_to_active_status(
