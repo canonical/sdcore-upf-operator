@@ -24,6 +24,7 @@ APP_NAME = METADATA["name"]
 MODEL_NAME = "upf-integration"
 ACCESS_INTERFACE_NAME = "enp6s0"
 CORE_INTERFACE_NAME = "enp7s0"
+GRAFANA_AGENT_APPLICATION_NAME = "grafana-agent"
 
 
 class TestUPFMachineCharm:
@@ -32,6 +33,18 @@ class TestUPFMachineCharm:
     async def setup(self):
         self.model = Model()
         await self.model.connect(model_name=MODEL_NAME)
+
+    @pytest.fixture(scope="module")
+    async def deploy_grafana_agent(self) -> None:
+        """Deploys grafana-agent-operator."""
+        self.model = Model()
+        await self.model.connect(model_name=MODEL_NAME)
+
+        await self.model.deploy(
+            GRAFANA_AGENT_APPLICATION_NAME,
+            application_name=GRAFANA_AGENT_APPLICATION_NAME,
+            trust=True,
+        )
 
     @pytest.mark.abort_on_fail
     async def test_given_upf_machine_charm_built_when_deploy_than_charm_goes_to_active_status(
@@ -204,6 +217,16 @@ class TestUPFMachineCharm:
         await application.set_config(config={"access-interface-name": ACCESS_INTERFACE_NAME})
         await self.model.wait_for_idle()
 
+        assert application.status == "active"
+
+    @pytest.mark.abort_on_fail
+    async def test_given_grafana_agent_deployed_when_relate_to_grafana_agent_then_status_is_active(self, deploy_grafana_agent):
+        application = await self._get_application(APP_NAME)
+        await self.model.integrate(
+            relation1=f"{APP_NAME}:cos-agent",
+            relation2=f"{GRAFANA_AGENT_APPLICATION_NAME}:cos-agent",
+        )
+        await self.model.wait_for_idle(apps=[APP_NAME])
         assert application.status == "active"
 
     async def _get_machine(self, machine_id: str):
