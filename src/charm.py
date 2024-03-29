@@ -252,7 +252,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         command = "sdcore-upf.bessctl show version"
         process = self._machine.exec(
             command=command,
-            timeout=2,
+            timeout=10,
         )
         try:
             process.wait_output()
