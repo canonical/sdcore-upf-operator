@@ -103,6 +103,44 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("charm.SnapCache")
+    def test_given_upf_services_started_when_remove_then_services_stopped(
+        self, mock_snap_cache
+    ):
+        self.harness.set_leader(True)
+        upf_snap = MagicMock()
+        upf_snap.services = {
+            "bessd": {"active": True},
+            "routectl": {"active": True},
+            "pfcpiface": {"active": True},
+        }
+        snap_cache = {"sdcore-upf": upf_snap}
+        mock_snap_cache.return_value = snap_cache
+
+        self.harness.charm.on.remove.emit()
+
+        upf_snap.stop.assert_has_calls(
+            calls=[
+                call(services=["bessd"]),
+                call(services=["routectl"]),
+                call(services=["pfcpiface"]),
+            ]
+        )
+
+    @patch("charm.SnapCache")
+    def test_given_upf_snap_uninstalled_when_remove_then_services_not_stopped(
+            self, mock_snap_cache
+    ):
+        self.harness.set_leader(True)
+        upf_snap = MagicMock()
+        upf_snap.services = {}
+        snap_cache = {"sdcore-upf": upf_snap}
+        mock_snap_cache.return_value = snap_cache
+
+        self.harness.charm.on.remove.emit()
+
+        upf_snap.stop.assert_not_called()
+
+    @patch("charm.SnapCache")
     def test_given_bessd_not_configured_when_config_changed_then_bessctl_run_called(
         self, mock_snap_cache
     ):

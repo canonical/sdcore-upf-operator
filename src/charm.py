@@ -111,9 +111,9 @@ class SdcoreUpfCharm(ops.CharmBase):
         """Stop the upf services and uninstall snap."""
         snap_cache = SnapCache()
         upf_snap = snap_cache[UPF_SNAP_NAME]
-        upf_snap.stop(services=["bessd"])
-        upf_snap.stop(services=["routectl"])
-        upf_snap.stop(services=["pfcpiface"])
+        for service in ["bessd", "routectl", "pfcpiface"]:
+            if upf_snap.services.get(service):
+                upf_snap.stop(services=[service])
         upf_snap.ensure(SnapState.Absent)
 
     def _on_fiveg_n4_request(self, event) -> None:
