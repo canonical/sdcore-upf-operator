@@ -24,3 +24,5 @@ parts:
 provides:
   fiveg_n4:
     interface: fiveg_n4
+  cos-agent:
+    interface: cos_agent

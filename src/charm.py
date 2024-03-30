@@ -11,6 +11,7 @@ from typing import Optional
 
 import ops
 from charm_config import CharmConfig, CharmConfigInvalidError
+from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 from charms.operator_libs_linux.v2.snap import SnapCache, SnapError, SnapState
 from charms.sdcore_upf_k8s.v0.fiveg_n4 import N4Provides
 from jinja2 import Environment, FileSystemLoader
@@ -30,6 +31,7 @@ UPF_SNAP_REVISION = "28"
 UPF_CONFIG_FILE_NAME = "upf.json"
 UPF_CONFIG_PATH = "/var/snap/sdcore-upf/common"
 PFCP_PORT = 8805
+PROMETHEUS_PORT = 8080
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +42,14 @@ class SdcoreUpfCharm(ops.CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
         self._machine = Machine()
+        self._cos_agent = COSAgentProvider(
+            self,
+            scrape_configs=[
+                {
+                    "static_configs": [{"targets": [f"*:{PROMETHEUS_PORT}"]}],
+                }
+            ],
+        )
         try:
             self._charm_config: CharmConfig = CharmConfig.from_charm(charm=self)
         except CharmConfigInvalidError:
