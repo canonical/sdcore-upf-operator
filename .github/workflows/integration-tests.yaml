@@ -93,15 +93,19 @@ jobs:
           name: juju-crashdump
           path: juju-crashdump-*.tar.xz
 
-      - name: Cleanup Multipass
-        if: always()
-        run: |
-          multipass delete --all
-          multipass purge
-
       - name: Cleanup Juju models
         if: always()
         run: |
+          juju destroy-model upf-integration --destroy-storage --force --no-wait --no-prompt || true
           for model in $(juju models | grep test-charm | awk '{ print $1 }'); do
             juju destroy-model $model --destroy-storage --force --no-wait --no-prompt 
           done
+
+      - name: Cleanup Multipass
+        if: always()
+        run: |
+          while ! multipass delete --all; do 
+            sleep 5 
+            echo "Retrying VM deletion"
+          done
+          multipass purge
