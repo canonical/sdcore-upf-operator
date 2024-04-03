@@ -13,3 +13,6 @@ updates:
       interval: "daily"
     commit-message:
       prefix: "chore: "
+    ignore:
+      - dependency-name: "pydantic"
+        update-types: ["version-update:semver-major"]
