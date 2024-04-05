@@ -26,19 +26,19 @@ jobs:
             cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
             ssh-copy-id -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa $USER@localhost
           fi
-          
+
           echo "# Initialize LXD"
           /usr/bin/sudo lxd init --auto
           lxc network create access --type=bridge ipv4.address=192.168.252.1/24 || true
           lxc network create core --type=bridge ipv4.address=192.168.250.1/24 || true
-          
+
           echo "# Install Multipass"
           /usr/bin/sudo snap install multipass
           while ! multipass set local.driver=lxd; do sleep 5; echo "Retrying setting local.driver for Multipass"; done
           /usr/bin/sudo snap restart multipass.multipassd
           /usr/bin/sudo cp /var/snap/multipass/common/data/multipassd/ssh-keys/id_rsa ~
           /usr/bin/sudo chown $USER:$USER ~/id_rsa
-          
+
           echo "# Install tox"
           /usr/bin/sudo apt update -yqq
           /usr/bin/sudo apt install -yqq python3-pip
@@ -52,28 +52,27 @@ jobs:
 
           echo "# Install charmcraft"
           /usr/bin/sudo snap install charmcraft --classic --channel=latest/stable
-          
+
           echo "# Bootstrap controller"
           mkdir -p ~/.local/share
           juju add-cloud upf-local --client -f ./.github/workflows/resources/upf-local-cloud.yaml || true
           juju bootstrap upf-local || true
           juju add-model upf-integration
-          
+
           echo "# Prepare UPF VM"
-          while ! multipass launch 22.04 --name upf --network access --network core --memory 8G --cpus 4; do 
-            sleep 5 
+          while ! multipass launch 22.04 --name upf --network access --network core --memory 8G --cpus 4; do
+            sleep 5
             echo "Retrying VM creation"
           done
           multipass exec upf -- sudo apt install net-tools
           ssh-keyscan -H $(multipass info upf | grep "IPv4" | awk '{ print $2 }') >> ~/.ssh/known_hosts
-          juju add-machine ssh:ubuntu@$(multipass info upf | grep "IPv4" | awk '{ print $2 }') --private-key ~/id_rsa    
+          juju add-machine ssh:ubuntu@$(multipass info upf | grep "IPv4" | awk '{ print $2 }') --private-key ~/id_rsa
 
       - name: Run integration tests
         run: tox -e integration
 
       - name: Archive Tested Charm
         uses: actions/upload-artifact@v4
-        if: ${{ github.ref_name == 'main' }}
         with:
           name: tested-charm
           path: .tox/**/${{ inputs.charm-file-name }}
@@ -98,14 +97,14 @@ jobs:
         run: |
           juju destroy-model upf-integration --destroy-storage --force --no-wait --no-prompt || true
           for model in $(juju models | grep test-charm | awk '{ print $1 }'); do
-            juju destroy-model $model --destroy-storage --force --no-wait --no-prompt 
+            juju destroy-model $model --destroy-storage --force --no-wait --no-prompt
           done
 
       - name: Cleanup Multipass
         if: always()
         run: |
-          while ! multipass delete --all; do 
-            sleep 5 
+          while ! multipass delete --all; do
+            sleep 5
             echo "Retrying VM deletion"
           done
           multipass purge
