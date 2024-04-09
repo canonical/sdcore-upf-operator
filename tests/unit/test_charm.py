@@ -73,7 +73,7 @@ class TestCharm(unittest.TestCase):
         upf_snap.ensure.assert_called_with(
             SnapState.Latest,
             channel="latest/edge",
-            revision="28",
+            revision="36",
             devmode=True,
         )
         upf_snap.hold.assert_called()
