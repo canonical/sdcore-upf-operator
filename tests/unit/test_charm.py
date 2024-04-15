@@ -216,7 +216,7 @@ class TestCharm(unittest.TestCase):
         assert json.loads(kwargs["source"]) == json.loads(expected_config_file_content)
 
     @patch("charm.SnapCache")
-    def test_given_config_file_written_with_different_content_when_config_changed_then_new_config_file_is_written(
+    def test_given_config_file_written_with_different_content_when_config_changed_then_new_config_file_is_written(  # noqa: E501
         self, _
     ):
         self.harness.set_leader(True)
@@ -231,7 +231,7 @@ class TestCharm(unittest.TestCase):
         assert json.loads(kwargs["source"]) == json.loads(expected_config_file_content)
 
     @patch("charm.SnapCache")
-    def test_given_config_file_written_with_identical_content_when_config_changed_then_new_config_file_not_written(
+    def test_given_config_file_written_with_identical_content_when_config_changed_then_new_config_file_not_written(  # noqa: E501
         self, _
     ):
         self.harness.set_leader(True)
