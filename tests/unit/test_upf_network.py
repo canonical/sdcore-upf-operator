@@ -125,7 +125,7 @@ class TestNetworkInterface(unittest.TestCase):
 
         self.assertEqual(address, interface_ipv4_address)
 
-    def test_given_interface_doesnt_exist_when_get_interface_ip_address_then_empty_string_is_returned(
+    def test_given_interface_doesnt_exist_when_get_interface_ip_address_then_empty_string_is_returned(  # noqa: E501
         self,
     ):
         self.network_interface.network_db.interfaces = MockInterfaces(interfaces=[])
@@ -134,7 +134,7 @@ class TestNetworkInterface(unittest.TestCase):
 
         self.assertEqual(address, "")
 
-    def test_given_interface_doesnt_have_ipv4_address_when_get_interface_ip_address_then_empty_string_is_returned(
+    def test_given_interface_doesnt_have_ipv4_address_when_get_interface_ip_address_then_empty_string_is_returned(  # noqa: E501
         self,
     ):
         self.network_interface.network_db.interfaces = MockInterfaces(
@@ -150,7 +150,7 @@ class TestNetworkInterface(unittest.TestCase):
 
         self.assertEqual(address, "")
 
-    def test_given_interface_has_gateway_ip_address_when_get_gateway_ip_address_then_gateway_ip_is_returned(
+    def test_given_interface_has_gateway_ip_address_when_get_gateway_ip_address_then_gateway_ip_is_returned(  # noqa: E501
         self,
     ):
         gateway_ip = "1.2.3.1"
@@ -170,7 +170,7 @@ class TestNetworkInterface(unittest.TestCase):
 
         self.assertEqual(address, gateway_ip)
 
-    def test_given_interface_doesnt_exist_when_get_gateway_ip_address_then_empty_string_is_returned(
+    def test_given_interface_doesnt_exist_when_get_gateway_ip_address_then_empty_string_is_returned(  # noqa: E501
         self,
     ):
         self.network_interface.ip_route = MockIPRoute(routes=[])
@@ -179,7 +179,7 @@ class TestNetworkInterface(unittest.TestCase):
 
         self.assertEqual(address, "")
 
-    def test_given_interface_doesnt_have_gateway_ip_address_when_get_gateway_ip_address_then_empty_string_is_returned(
+    def test_given_interface_doesnt_have_gateway_ip_address_when_get_gateway_ip_address_then_empty_string_is_returned(  # noqa: E501
         self,
     ):
         self.network_interface.ip_route = MockIPRoute(
@@ -256,7 +256,7 @@ class TestNetworkInterface(unittest.TestCase):
 
         self.assertFalse(is_valid)
 
-    def test_given_interface_exists_and_doesnt_have_ipv4_address_when_is_valid_then_false_is_returned(
+    def test_given_interface_exists_and_doesnt_have_ipv4_address_when_is_valid_then_false_is_returned(  # noqa: E501
         self,
     ):
         self.network_interface.network_db.interfaces = MockInterfaces(
@@ -380,7 +380,7 @@ class TestUPFNetwork(unittest.TestCase):
     @patch("upf_network.IPTablesRule")
     @patch("upf_network.Route")
     @patch("upf_network.NetworkInterface")
-    def test_given_invalid_access_interface_when_get_invalid_network_interfaces_then_interface_is_returned(
+    def test_given_invalid_access_interface_when_get_invalid_network_interfaces_then_interface_is_returned(  # noqa: E501
         self, mock_network_interface, _, __
     ):
         mock_access_interface_instance = MagicMock()
@@ -407,7 +407,7 @@ class TestUPFNetwork(unittest.TestCase):
     @patch("upf_network.IPTablesRule")
     @patch("upf_network.Route")
     @patch("upf_network.NetworkInterface")
-    def test_given_valid_interfaces_when_get_invalid_network_interfaces_then_empty_list_is_returned(
+    def test_given_valid_interfaces_when_get_invalid_network_interfaces_then_empty_list_is_returned(  # noqa: E501
         self, mock_network_interface, _, __
     ):
         mock_access_interface_instance = MagicMock()
