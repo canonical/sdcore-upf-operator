@@ -21,10 +21,12 @@ class UPFNetworkError(Exception):
 class NetworkInterface:
     """A class to interact with a network interface."""
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, ip_address: str, mtu_size: int = 1500):
         self.network_db = NDB()
         self.ip_route = IPRoute()
         self.name = name
+        self.ip_address = ip_address
+        self.mtu_size = mtu_size
 
     def exists(self) -> bool:
         """Return whether the network interface exists."""
@@ -35,10 +37,10 @@ class NetworkInterface:
         if not self.exists():
             logger.warning("Interface %s does not exist", self.name)
             return False
-        ip_address = self.get_ip_address()
-        if not ip_address:
-            logger.warning("IP address for interface %s is empty", self.name)
-            return False
+        # ip_address = self.get_ip_address()
+        # if not ip_address:
+        #     logger.warning("IP address for interface %s is empty", self.name)
+        #     return False
         return True
 
     def get_ip_address(self) -> str:
@@ -54,6 +56,36 @@ class NetworkInterface:
         except KeyError:
             logger.warning("Interface %s not found in the network database", self.name)
         return ""
+
+    def set_ip_address(self) -> None:
+        """Clean all unrequired IPs and set the IP address for the given network interface."""
+        interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
+        try:
+            iface_record = interfaces[self.name]
+            ip_addresses = iface_record.ipaddr
+            # remove all unrequired IPs
+            for ip in ip_addresses:
+                if ip.family == AF_INET:
+                    if ip.address != self.ip_address:
+                        logger.info("Removing IP %s/%s from interface %s",
+                                    ip.address, ip.prefixlen, self.name)
+                        iface_record.del_ip(f"{ip.address}/{ip.prefixlen}").commit()
+            # add requested IP if not already there
+            if not self.get_ip_address():
+                logger.info("Adding IP %s to interface %s", self.ip_address, self.name)
+                iface_record.add_ip(self.ip_address).commit()
+        except KeyError:
+            logger.warning("Interface %s not found in the network database", self.name)
+
+    def set_mtu_size(self) -> None:
+        """Set the MTU size for the given network interface."""
+        interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
+        try:
+            iface_record = interfaces[self.name]
+            logger.info("Setting MTU size to %s for interface %s", self.mtu_size, self.name)
+            iface_record.set("mtu", self.mtu_size).commit()
+        except KeyError:
+            logger.warning("Interface %s not found in the network database", self.name)
 
     def get_gateway_ip_address(self) -> str:
         """Get the gateway IPv4 address of the given network interface."""
@@ -165,15 +197,19 @@ class UPFNetwork:
     def __init__(
         self,
         access_interface_name: str,
+        access_ip: str,
         core_interface_name: str,
+        core_ip: str,
         gnb_subnet: str,
     ):
         if not access_interface_name:
             raise ValueError("Access network interface name is empty")
         if not core_interface_name:
             raise ValueError("Core network interface name is empty")
-        self.access_interface = NetworkInterface(access_interface_name)
-        self.core_interface = NetworkInterface(core_interface_name)
+        self.access_interface = NetworkInterface(access_interface_name, access_ip)
+        self.access_ip = access_ip
+        self.core_interface = NetworkInterface(core_interface_name, core_ip)
+        self.core_ip = core_ip
         self.default_route = Route(
             destination="",
             gateway=self.core_interface.get_gateway_ip_address(),
@@ -200,6 +236,8 @@ class UPFNetwork:
 
     def configure(self) -> None:
         """Configure the network for the UPF service."""
+        self.access_interface.set_ip_address()
+        self.core_interface.set_ip_address()
         if not self.default_route.exists():
             logger.info("Default route does not exist")
             self.default_route.create()
@@ -212,8 +250,13 @@ class UPFNetwork:
 
     def is_configured(self) -> bool:
         """Return whether the network is configured for the UPF service."""
-        return (
+        ifaces_are_configured = (
+                self.access_interface.get_ip_address()
+                and self.core_interface.get_ip_address()
+        )
+        routes_are_configured = (
             self.default_route.exists()
             and self.ran_route.exists()
             and self.ip_tables_rule.exists()
         )
+        return ifaces_are_configured and routes_are_configured

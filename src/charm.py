@@ -56,7 +56,9 @@ class SdcoreUpfCharm(ops.CharmBase):
             return
         self._network = UPFNetwork(
             access_interface_name=self._charm_config.access_interface_name,  # type: ignore
+            access_ip=self._charm_config.access_ip,  # type: ignore
             core_interface_name=self._charm_config.core_interface_name,  # type: ignore
+            core_ip=self._charm_config.core_ip,  # type: ignore
             gnb_subnet=str(self._charm_config.gnb_subnet),
         )
         self.fiveg_n4_provider = N4Provides(charm=self, relation_name="fiveg_n4")
