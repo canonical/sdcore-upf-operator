@@ -48,7 +48,13 @@ class UpfConfig(BaseModel):  # pylint: disable=too-few-public-methods
     dnn: StrictStr = Field(default="internet", min_length=1)
     gnb_subnet: IPvAnyNetwork = Field(default="192.168.251.0/24")  # type: ignore
     access_interface_name: StrictStr = Field(default="eth0")
+    access_ip: str = Field(default="192.168.252.3/24")
+    access_interface_mtu_size: Optional[int] = Field(
+        default=None, ge=1200, le=65535, validate_default=True
+    )
     core_interface_name: StrictStr = Field(default="eth1")
+    core_ip: str = Field(default="192.168.250.3/24")
+    core_interface_mtu_size: Optional[int] = Field(default=None, ge=1200, le=65535)
     external_upf_hostname: StrictStr = Field(default="")
     enable_hw_checksum: bool = True
 
@@ -89,7 +95,9 @@ class CharmConfig:
         self.dnn = upf_config.dnn
         self.gnb_subnet = upf_config.gnb_subnet
         self.access_interface_name = upf_config.access_interface_name
+        self.access_ip = upf_config.access_ip
         self.core_interface_name = upf_config.core_interface_name
+        self.core_ip = upf_config.core_ip
         self.external_upf_hostname = upf_config.external_upf_hostname
         self.enable_hw_checksum = upf_config.enable_hw_checksum
 

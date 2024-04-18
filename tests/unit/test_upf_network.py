@@ -107,23 +107,26 @@ class TestNetworkInterface(unittest.TestCase):
     @patch("pyroute2.NDB")
     def setUp(self, mock_ndb, mock_ip_route):
         self.network_interface_name = "eth0"
-        self.network_interface = NetworkInterface(name=self.network_interface_name)
+        self.interface_ipv4_address = "1.2.3.4"
+        self.network_interface = NetworkInterface(
+            name=self.network_interface_name,
+            ip_address=self.interface_ipv4_address
+        )
         self.network_interface.network_db = MockNDB()
         self.network_interface.ip_route = MockIPRoute(routes=[])
 
     def test_given_interface_has_ipv4_address_when_get_interface_ip_address_ip_is_returned(self):
-        interface_ipv4_address = "1.2.3.4"
         self.network_interface.network_db.interfaces = MockInterfaces(
             interfaces=[
                 MockInterface(
-                    ipv4_address=interface_ipv4_address, name=self.network_interface_name
+                    ipv4_address=self.interface_ipv4_address, name=self.network_interface_name
                 )
             ]
         )
 
         address = self.network_interface.get_ip_address()
 
-        self.assertEqual(address, interface_ipv4_address)
+        self.assertEqual(address, self.interface_ipv4_address)
 
     def test_given_interface_doesnt_exist_when_get_interface_ip_address_then_empty_string_is_returned(  # noqa: E501
         self,
@@ -200,7 +203,7 @@ class TestNetworkInterface(unittest.TestCase):
     def test_given_interface_exists_when_get_index_then_index_is_returned(self):
         interface_index = 2
         self.network_interface.network_db.interfaces = MockInterfaces(
-            interfaces=[MockInterface(ipv4_address="1.2.3.4", name=self.network_interface_name)]
+            interfaces=[MockInterface(ipv4_address=self.interface_ipv4_address, name=self.network_interface_name)]
         )
         self.network_interface.ip_route = MockIPRoute(
             routes=[
@@ -226,7 +229,7 @@ class TestNetworkInterface(unittest.TestCase):
 
     def test_given_interface_exists_when_exists_then_true_is_returned(self):
         self.network_interface.network_db.interfaces = MockInterfaces(
-            interfaces=[MockInterface(ipv4_address="1.2.3.4", name=self.network_interface_name)]
+            interfaces=[MockInterface(ipv4_address=self.interface_ipv4_address, name=self.network_interface_name)]
         )
 
         exists = self.network_interface.exists()
@@ -240,33 +243,8 @@ class TestNetworkInterface(unittest.TestCase):
 
         self.assertFalse(exists)
 
-    def test_given_interface_exists_and_has_ipv4_address_when_is_valid_then_true_is_returned(self):
-        self.network_interface.network_db.interfaces = MockInterfaces(
-            interfaces=[MockInterface(ipv4_address="1.2.3.4", name=self.network_interface_name)]
-        )
-
-        is_valid = self.network_interface.is_valid()
-
-        self.assertTrue(is_valid)
-
     def test_given_interface_doesnt_exist_when_is_valid_then_false_is_returned(self):
         self.network_interface.network_db.interfaces = MockInterfaces(interfaces=[])
-
-        is_valid = self.network_interface.is_valid()
-
-        self.assertFalse(is_valid)
-
-    def test_given_interface_exists_and_doesnt_have_ipv4_address_when_is_valid_then_false_is_returned(  # noqa: E501
-        self,
-    ):
-        self.network_interface.network_db.interfaces = MockInterfaces(
-            interfaces=[
-                MockInterface(
-                    ipv6_address="2001:0db8:85a3:0000:0000:8a2e:0370:7334",
-                    name=self.network_interface_name,
-                )
-            ]
-        )
 
         is_valid = self.network_interface.is_valid()
 
@@ -374,7 +352,9 @@ class TestUPFNetwork(unittest.TestCase):
 
     def setUp(self):
         self.core_interface_name = "eth0"
+        self.core_ip = "1.2.3.4/24"
         self.access_interface_name = "eth1"
+        self.access_ip = "2.3.4.5/24"
         self.gnb_subnet = "1.2.1.0/24"
 
     @patch("upf_network.IPTablesRule")
@@ -397,7 +377,9 @@ class TestUPFNetwork(unittest.TestCase):
 
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
             core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
             gnb_subnet=self.gnb_subnet,
         )
         invalid_network_interfaces = upf_network.get_invalid_network_interfaces()
@@ -420,7 +402,9 @@ class TestUPFNetwork(unittest.TestCase):
         ]
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
             core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
             gnb_subnet=self.gnb_subnet,
         )
 
@@ -444,7 +428,9 @@ class TestUPFNetwork(unittest.TestCase):
         ]
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
             core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
             gnb_subnet=self.gnb_subnet,
         )
 
@@ -475,7 +461,9 @@ class TestUPFNetwork(unittest.TestCase):
         mock_route_instance.exists.return_value = True
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
             core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
             gnb_subnet=self.gnb_subnet,
         )
 
@@ -499,7 +487,9 @@ class TestUPFNetwork(unittest.TestCase):
         ]
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
             core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
             gnb_subnet=self.gnb_subnet,
         )
 
@@ -529,7 +519,9 @@ class TestUPFNetwork(unittest.TestCase):
         mock_route_instance.exists.return_value = True
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
             core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
             gnb_subnet=self.gnb_subnet,
         )
 
@@ -553,7 +545,9 @@ class TestUPFNetwork(unittest.TestCase):
         ]
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
             core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
             gnb_subnet=self.gnb_subnet,
         )
 
@@ -579,7 +573,9 @@ class TestUPFNetwork(unittest.TestCase):
         mock_iptables_rule_instance.exists.return_value = True
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
             core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
             gnb_subnet=self.gnb_subnet,
         )
 
