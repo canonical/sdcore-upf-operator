@@ -16,10 +16,28 @@ options:
     type: string
     default: eth0
     description: Name of the UPF's access interface.
+  access-interface-ip:
+    type: string
+    default: 192.168.252.3/24
+    description: IP address used by the UPF's Access interface.
+  access-interface-mtu-size:
+    type: int
+    default: 1500
+    description: |
+      MTU for the access interface (1200 <= MTU <= 65535) in bytes.
   core-interface-name:
     type: string
     default: eth1
     description: Name of the UPF's core interface.
+  core-interface-ip:
+    type: string
+    default: 192.168.250.3/24
+    description: IP address used by the UPF's Access interface.
+  core-interface-mtu-size:
+    type: int
+    default: 1500
+    description: |
+      MTU for the core interface (1200 <= MTU <= 65535) in bytes.
   external-upf-hostname:
     type: string
     description: |
