@@ -65,6 +65,13 @@ class UpfConfig(BaseModel):  # pylint: disable=too-few-public-methods
         ip_network(value, strict=True)
         return value
 
+    @validator("access_ip", "core_ip")
+    @classmethod
+    def validate_ip_network_address(cls, value: str) -> str:
+        """Validate that IP network address is valid."""
+        ip_network(value, strict=False)
+        return value
+
 
 @dataclasses.dataclass
 class CharmConfig:
