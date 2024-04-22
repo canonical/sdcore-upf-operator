@@ -16,7 +16,7 @@ options:
     type: string
     default: eth0
     description: Name of the UPF's access interface.
-  access-interface-ip:
+  access-ip:
     type: string
     default: 192.168.252.3/24
     description: IP address used by the UPF's Access interface.
@@ -29,7 +29,7 @@ options:
     type: string
     default: eth1
     description: Name of the UPF's core interface.
-  core-interface-ip:
+  core-ip:
     type: string
     default: 192.168.250.3/24
     description: IP address used by the UPF's Access interface.
