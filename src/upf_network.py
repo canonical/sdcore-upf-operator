@@ -226,9 +226,11 @@ class UPFNetwork:
         self,
         access_interface_name: str,
         access_ip: str,
+        access_gateway_ip: str,
         access_mtu_size: int,
         core_interface_name: str,
         core_ip: str,
+        core_gateway_ip: str,
         core_mtu_size: int,
         gnb_subnet: str,
     ):
@@ -237,18 +239,16 @@ class UPFNetwork:
         if not core_interface_name:
             raise ValueError("Core network interface name is empty")
         self.access_interface = NetworkInterface(access_interface_name, access_ip, access_mtu_size)
-        self.access_ip = access_ip
         self.core_interface = NetworkInterface(core_interface_name, core_ip, core_mtu_size)
-        self.core_ip = core_ip
         self.default_route = Route(
             destination="",
-            gateway=self.core_interface.get_gateway_ip_address(),
+            gateway=core_gateway_ip,
             oif=self.core_interface.get_index(),
             metric=110,
         )
         self.ran_route = Route(
             destination=gnb_subnet,
-            gateway=self.access_interface.get_gateway_ip_address(),
+            gateway=access_gateway_ip,
             oif=self.access_interface.get_index(),
         )
         self.ip_tables_rule = IPTablesRule()
