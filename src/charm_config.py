@@ -16,7 +16,7 @@ from pydantic import (  # pylint: disable=no-name-in-module,import-error
     ValidationError,
     validator,
 )
-from pydantic.networks import IPvAnyNetwork
+from pydantic.networks import IPvAnyAddress, IPvAnyNetwork
 
 logger = logging.getLogger(__name__)
 
@@ -49,11 +49,13 @@ class UpfConfig(BaseModel):  # pylint: disable=too-few-public-methods
     gnb_subnet: IPvAnyNetwork = Field(default="192.168.251.0/24")  # type: ignore
     access_interface_name: StrictStr = Field(default="eth0")
     access_ip: str = Field(default="192.168.252.3/24")
+    access_gateway_ip: IPvAnyAddress = Field(default="192.168.252.1")
     access_interface_mtu_size: Optional[int] = Field(
         default=None, ge=1200, le=65535, validate_default=True
     )
     core_interface_name: StrictStr = Field(default="eth1")
     core_ip: str = Field(default="192.168.250.3/24")
+    core_gateway_ip: IPvAnyAddress = Field(default="192.168.250.1")
     core_interface_mtu_size: Optional[int] = Field(default=None, ge=1200, le=65535)
     external_upf_hostname: StrictStr = Field(default="")
     enable_hw_checksum: bool = True
@@ -90,9 +92,11 @@ class CharmConfig:
     gnb_subnet: IPvAnyNetwork
     access_interface_name: Optional[StrictStr]
     access_ip: StrictStr
+    access_gateway_ip: IPvAnyAddress
     access_interface_mtu_size: Optional[int]
     core_interface_name: Optional[StrictStr]
     core_ip: StrictStr
+    core_gateway_ip: IPvAnyAddress
     core_interface_mtu_size: Optional[int]
     external_upf_hostname: Optional[StrictStr]
     enable_hw_checksum: bool
@@ -107,9 +111,11 @@ class CharmConfig:
         self.gnb_subnet = upf_config.gnb_subnet
         self.access_interface_name = upf_config.access_interface_name
         self.access_ip = upf_config.access_ip
+        self.access_gateway_ip = upf_config.access_gateway_ip
         self.access_interface_mtu_size = upf_config.access_interface_mtu_size
         self.core_interface_name = upf_config.core_interface_name
         self.core_ip = upf_config.core_ip
+        self.core_gateway_ip = upf_config.core_gateway_ip
         self.core_interface_mtu_size = upf_config.core_interface_mtu_size
         self.external_upf_hostname = upf_config.external_upf_hostname
         self.enable_hw_checksum = upf_config.enable_hw_checksum

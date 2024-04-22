@@ -359,9 +359,11 @@ class TestUPFNetwork(unittest.TestCase):
     def setUp(self):
         self.core_interface_name = "eth0"
         self.core_ip = "1.2.3.4/24"
+        self.core_gateway_ip = "1.2.3.1"
         self.core_interface_mtu_size = 1500
         self.access_interface_name = "eth1"
         self.access_ip = "2.3.4.5/24"
+        self.access_gateway_ip = "2.3.4.1"
         self.access_interface_mtu_size = 1500
         self.gnb_subnet = "1.2.1.0/24"
 
@@ -386,9 +388,11 @@ class TestUPFNetwork(unittest.TestCase):
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
             access_mtu_size=self.access_interface_mtu_size,
             core_interface_name=self.core_interface_name,
             core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
             core_mtu_size=self.core_interface_mtu_size,
             gnb_subnet=self.gnb_subnet,
         )
@@ -413,9 +417,11 @@ class TestUPFNetwork(unittest.TestCase):
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
             access_mtu_size=self.access_interface_mtu_size,
             core_interface_name=self.core_interface_name,
             core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
             core_mtu_size=self.core_interface_mtu_size,
             gnb_subnet=self.gnb_subnet,
         )
@@ -441,9 +447,11 @@ class TestUPFNetwork(unittest.TestCase):
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
             access_mtu_size=self.access_interface_mtu_size,
             core_interface_name=self.core_interface_name,
             core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
             core_mtu_size=self.core_interface_mtu_size,
             gnb_subnet=self.gnb_subnet,
         )
@@ -452,7 +460,7 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_route.assert_any_call(
             destination="",
-            gateway=mock_core_interface_instance.get_gateway_ip_address(),
+            gateway=self.core_gateway_ip,
             oif=mock_core_interface_instance.get_index(),
             metric=110,
         )
@@ -476,9 +484,11 @@ class TestUPFNetwork(unittest.TestCase):
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
             access_mtu_size=self.access_interface_mtu_size,
             core_interface_name=self.core_interface_name,
             core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
             core_mtu_size=self.core_interface_mtu_size,
             gnb_subnet=self.gnb_subnet,
         )
@@ -504,9 +514,11 @@ class TestUPFNetwork(unittest.TestCase):
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
             access_mtu_size=self.access_interface_mtu_size,
             core_interface_name=self.core_interface_name,
             core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
             core_mtu_size=self.core_interface_mtu_size,
             gnb_subnet=self.gnb_subnet,
         )
@@ -515,7 +527,7 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_route.assert_any_call(
             destination=self.gnb_subnet,
-            gateway=mock_access_interface_instance.get_gateway_ip_address(),
+            gateway=self.access_gateway_ip,
             oif=mock_access_interface_instance.get_index(),
         )
 
@@ -538,9 +550,11 @@ class TestUPFNetwork(unittest.TestCase):
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
             access_mtu_size=self.access_interface_mtu_size,
             core_interface_name=self.core_interface_name,
             core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
             core_mtu_size=self.core_interface_mtu_size,
             gnb_subnet=self.gnb_subnet,
         )
@@ -566,9 +580,11 @@ class TestUPFNetwork(unittest.TestCase):
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
             access_mtu_size=self.access_interface_mtu_size,
             core_interface_name=self.core_interface_name,
             core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
             core_mtu_size=self.core_interface_mtu_size,
             gnb_subnet=self.gnb_subnet,
         )
@@ -596,9 +612,11 @@ class TestUPFNetwork(unittest.TestCase):
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
             access_mtu_size=self.access_interface_mtu_size,
             core_interface_name=self.core_interface_name,
             core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
             core_mtu_size=self.core_interface_mtu_size,
             gnb_subnet=self.gnb_subnet,
         )
