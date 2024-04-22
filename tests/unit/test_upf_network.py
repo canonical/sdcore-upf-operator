@@ -359,8 +359,10 @@ class TestUPFNetwork(unittest.TestCase):
     def setUp(self):
         self.core_interface_name = "eth0"
         self.core_ip = "1.2.3.4/24"
+        self.core_interface_mtu_size = 1500
         self.access_interface_name = "eth1"
         self.access_ip = "2.3.4.5/24"
+        self.access_interface_mtu_size = 1500
         self.gnb_subnet = "1.2.1.0/24"
 
     @patch("upf_network.IPTablesRule")
@@ -384,8 +386,10 @@ class TestUPFNetwork(unittest.TestCase):
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
+            access_mtu_size=self.access_interface_mtu_size,
             core_interface_name=self.core_interface_name,
             core_ip=self.core_ip,
+            core_mtu_size=self.core_interface_mtu_size,
             gnb_subnet=self.gnb_subnet,
         )
         invalid_network_interfaces = upf_network.get_invalid_network_interfaces()
@@ -409,8 +413,10 @@ class TestUPFNetwork(unittest.TestCase):
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
+            access_mtu_size=self.access_interface_mtu_size,
             core_interface_name=self.core_interface_name,
             core_ip=self.core_ip,
+            core_mtu_size=self.core_interface_mtu_size,
             gnb_subnet=self.gnb_subnet,
         )
 
@@ -435,8 +441,10 @@ class TestUPFNetwork(unittest.TestCase):
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
+            access_mtu_size=self.access_interface_mtu_size,
             core_interface_name=self.core_interface_name,
             core_ip=self.core_ip,
+            core_mtu_size=self.core_interface_mtu_size,
             gnb_subnet=self.gnb_subnet,
         )
 
@@ -468,8 +476,10 @@ class TestUPFNetwork(unittest.TestCase):
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
+            access_mtu_size=self.access_interface_mtu_size,
             core_interface_name=self.core_interface_name,
             core_ip=self.core_ip,
+            core_mtu_size=self.core_interface_mtu_size,
             gnb_subnet=self.gnb_subnet,
         )
 
@@ -494,8 +504,10 @@ class TestUPFNetwork(unittest.TestCase):
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
+            access_mtu_size=self.access_interface_mtu_size,
             core_interface_name=self.core_interface_name,
             core_ip=self.core_ip,
+            core_mtu_size=self.core_interface_mtu_size,
             gnb_subnet=self.gnb_subnet,
         )
 
@@ -526,8 +538,10 @@ class TestUPFNetwork(unittest.TestCase):
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
+            access_mtu_size=self.access_interface_mtu_size,
             core_interface_name=self.core_interface_name,
             core_ip=self.core_ip,
+            core_mtu_size=self.core_interface_mtu_size,
             gnb_subnet=self.gnb_subnet,
         )
 
@@ -552,8 +566,10 @@ class TestUPFNetwork(unittest.TestCase):
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
+            access_mtu_size=self.access_interface_mtu_size,
             core_interface_name=self.core_interface_name,
             core_ip=self.core_ip,
+            core_mtu_size=self.core_interface_mtu_size,
             gnb_subnet=self.gnb_subnet,
         )
 
@@ -580,8 +596,10 @@ class TestUPFNetwork(unittest.TestCase):
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
+            access_mtu_size=self.access_interface_mtu_size,
             core_interface_name=self.core_interface_name,
             core_ip=self.core_ip,
+            core_mtu_size=self.core_interface_mtu_size,
             gnb_subnet=self.gnb_subnet,
         )
 
