@@ -57,6 +57,24 @@ class NetworkInterface:
             logger.warning("Interface %s not found in the network database", self.name)
         return ""
 
+    def addresses_are_set(self) -> bool:
+        """Check if the given network interface is already configured."""
+        interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
+        try:
+            iface_record = interfaces[self.name]
+            ip_addresses = iface_record.ipaddr
+            for ip in ip_addresses:
+                if ip.family == AF_INET:
+                    logger.info("Found IP: %s/%s", ip.address, ip.prefixlen)
+                    if f"{ip.address}/{ip.prefixlen}" != self.ip_address:
+                        return False
+            if not self.get_ip_address():
+                return False
+        except KeyError:
+            logger.warning("Interface %s not found in the network database", self.name)
+            return False
+        return True
+
     def set_ip_address(self) -> None:
         """Clean all unrequired IPs and set the IP address for the given network interface."""
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
@@ -76,6 +94,16 @@ class NetworkInterface:
                 iface_record.add_ip(self.ip_address).commit()
         except KeyError:
             logger.warning("Interface %s not found in the network database", self.name)
+
+    def mtu_size_is_set(self) -> bool:
+        """Check if MTU size of the given network interface is already configured ."""
+        interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
+        try:
+            iface_record = interfaces[self.name]
+            return iface_record.get("mtu") == self.mtu_size
+        except KeyError:
+            logger.warning("Interface %s not found in the network database", self.name)
+            return False
 
     def set_mtu_size(self) -> None:
         """Set the MTU size for the given network interface."""
@@ -238,10 +266,14 @@ class UPFNetwork:
 
     def configure(self) -> None:
         """Configure the network for the UPF service."""
-        self.access_interface.set_ip_address()
-        self.access_interface.set_mtu_size()
-        self.core_interface.set_ip_address()
-        self.core_interface.set_mtu_size()
+        if not self.access_interface.addresses_are_set():
+            self.access_interface.set_ip_address()
+        if not self.access_interface.mtu_size_is_set():
+            self.access_interface.set_mtu_size()
+        if not self.core_interface.addresses_are_set():
+            self.core_interface.set_ip_address()
+        if not self.core_interface.mtu_size_is_set():
+            self.core_interface.set_mtu_size()
         if not self.default_route.exists():
             logger.info("Default route does not exist")
             self.default_route.create()
@@ -255,8 +287,8 @@ class UPFNetwork:
     def is_configured(self) -> bool:
         """Return whether the network is configured for the UPF service."""
         ifaces_are_configured = (
-                self.access_interface.get_ip_address()
-                and self.core_interface.get_ip_address()
+                self.access_interface.addresses_are_set()
+                and self.core_interface.addresses_are_set()
         )
         routes_are_configured = (
             self.default_route.exists()

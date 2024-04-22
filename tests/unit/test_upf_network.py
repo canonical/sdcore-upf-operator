@@ -203,7 +203,10 @@ class TestNetworkInterface(unittest.TestCase):
     def test_given_interface_exists_when_get_index_then_index_is_returned(self):
         interface_index = 2
         self.network_interface.network_db.interfaces = MockInterfaces(
-            interfaces=[MockInterface(ipv4_address=self.interface_ipv4_address, name=self.network_interface_name)]
+            interfaces=[MockInterface(
+                ipv4_address=self.interface_ipv4_address,
+                name=self.network_interface_name
+            )]
         )
         self.network_interface.ip_route = MockIPRoute(
             routes=[
@@ -229,7 +232,10 @@ class TestNetworkInterface(unittest.TestCase):
 
     def test_given_interface_exists_when_exists_then_true_is_returned(self):
         self.network_interface.network_db.interfaces = MockInterfaces(
-            interfaces=[MockInterface(ipv4_address=self.interface_ipv4_address, name=self.network_interface_name)]
+            interfaces=[MockInterface(
+                ipv4_address=self.interface_ipv4_address,
+                name=self.network_interface_name
+            )]
         )
 
         exists = self.network_interface.exists()
