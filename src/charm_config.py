@@ -82,7 +82,11 @@ class CharmConfig:
     dnn: StrictStr
     gnb_subnet: IPvAnyNetwork
     access_interface_name: Optional[StrictStr]
+    access_ip: StrictStr
+    access_interface_mtu_size: Optional[int]
     core_interface_name: Optional[StrictStr]
+    core_ip: StrictStr
+    core_interface_mtu_size: Optional[int]
     external_upf_hostname: Optional[StrictStr]
     enable_hw_checksum: bool
 
@@ -96,8 +100,10 @@ class CharmConfig:
         self.gnb_subnet = upf_config.gnb_subnet
         self.access_interface_name = upf_config.access_interface_name
         self.access_ip = upf_config.access_ip
+        self.access_interface_mtu_size = upf_config.access_interface_mtu_size
         self.core_interface_name = upf_config.core_interface_name
         self.core_ip = upf_config.core_ip
+        self.core_interface_mtu_size = upf_config.core_interface_mtu_size
         self.external_upf_hostname = upf_config.external_upf_hostname
         self.enable_hw_checksum = upf_config.enable_hw_checksum
 
