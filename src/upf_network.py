@@ -198,17 +198,19 @@ class UPFNetwork:
         self,
         access_interface_name: str,
         access_ip: str,
+        access_mtu_size: int,
         core_interface_name: str,
         core_ip: str,
+        core_mtu_size: int,
         gnb_subnet: str,
     ):
         if not access_interface_name:
             raise ValueError("Access network interface name is empty")
         if not core_interface_name:
             raise ValueError("Core network interface name is empty")
-        self.access_interface = NetworkInterface(access_interface_name, access_ip)
+        self.access_interface = NetworkInterface(access_interface_name, access_ip, access_mtu_size)
         self.access_ip = access_ip
-        self.core_interface = NetworkInterface(core_interface_name, core_ip)
+        self.core_interface = NetworkInterface(core_interface_name, core_ip, core_mtu_size)
         self.core_ip = core_ip
         self.default_route = Route(
             destination="",
@@ -237,7 +239,9 @@ class UPFNetwork:
     def configure(self) -> None:
         """Configure the network for the UPF service."""
         self.access_interface.set_ip_address()
+        self.access_interface.set_mtu_size()
         self.core_interface.set_ip_address()
+        self.core_interface.set_mtu_size()
         if not self.default_route.exists():
             logger.info("Default route does not exist")
             self.default_route.create()
