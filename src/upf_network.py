@@ -51,7 +51,7 @@ class NetworkInterface:
             ip_addresses = iface_record.ipaddr
             for ip in ip_addresses:
                 if ip.family == AF_INET:
-                    return ip.address
+                    return f"{ip.address}/{ip.prefixlen}"
             logger.warning("No IPv4 address found for interface %s", self.name)
         except KeyError:
             logger.warning("Interface %s not found in the network database", self.name)
