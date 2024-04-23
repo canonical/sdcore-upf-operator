@@ -15,16 +15,23 @@ class MockIPAddr:
     def __init__(self, ipv4_address: str = "", ipv6_address: str = ""):
         if ipv4_address:
             self.family = AF_INET
-            self.address = ipv4_address
+            self.address = ipv4_address.split("/")[0]
+            self.prefixlen = ipv4_address.split("/")[1]
         elif ipv6_address:
             self.family = AF_INET6
             self.address = ipv6_address
 
 
 class MockInterface:
-    def __init__(self, name: str, ipv4_address: str = "", ipv6_address: str = ""):
+    def __init__(
+        self, name: str, ipv4_address: str = "", ipv6_address: str = "", mtu_size: int = 1500
+    ):
         self.name = name
         self.ipaddr = [MockIPAddr(ipv4_address=ipv4_address, ipv6_address=ipv6_address)]
+        self.mtu = mtu_size
+
+    def get(self, key):
+        return getattr(self, key)
 
 
 class MockInterfaces:
@@ -107,7 +114,8 @@ class TestNetworkInterface(unittest.TestCase):
     @patch("pyroute2.NDB")
     def setUp(self, mock_ndb, mock_ip_route):
         self.network_interface_name = "eth0"
-        self.interface_ipv4_address = "1.2.3.4"
+        self.interface_ipv4_address = "1.2.3.4/24"
+        self.interface_mtu_size = 1400
         self.network_interface = NetworkInterface(
             name=self.network_interface_name,
             ip_address=self.interface_ipv4_address
@@ -255,6 +263,55 @@ class TestNetworkInterface(unittest.TestCase):
         is_valid = self.network_interface.is_valid()
 
         self.assertFalse(is_valid)
+
+    def test_given_correct_address_when_addresses_are_set_then_true_is_returned(self):
+        self.network_interface.network_db.interfaces = MockInterfaces(
+            interfaces=[MockInterface(
+                ipv4_address=self.interface_ipv4_address,
+                name=self.network_interface_name
+            )]
+        )
+
+        addresses_are_set = self.network_interface.addresses_are_set()
+
+        self.assertTrue(addresses_are_set)
+
+    def test_given_incorrect_address_when_addresses_are_set_then_false_is_returned(self):
+        self.network_interface.network_db.interfaces = MockInterfaces(
+            interfaces=[MockInterface(
+                ipv4_address="2.3.4.5/30",
+                name=self.network_interface_name
+            )]
+        )
+
+        addresses_are_set = self.network_interface.addresses_are_set()
+
+        self.assertFalse(addresses_are_set)
+
+    def test_given_correct_mtu_size_when_mtu_size_is_set_then_true_is_returned(self):
+        self.network_interface.network_db.interfaces = MockInterfaces(
+            interfaces=[MockInterface(
+                ipv4_address=self.interface_ipv4_address,
+                name=self.network_interface_name
+            )]
+        )
+
+        mtu_size_is_set = self.network_interface.mtu_size_is_set()
+
+        self.assertTrue(mtu_size_is_set)
+
+    def test_given_incorrect_mtu_size_when_mtu_size_is_set_then_true_is_returned(self):
+        self.network_interface.network_db.interfaces = MockInterfaces(
+            interfaces=[MockInterface(
+                ipv4_address="2.3.4.5/30",
+                name=self.network_interface_name,
+                mtu_size=self.interface_mtu_size,
+            )]
+        )
+
+        mtu_size_is_set = self.network_interface.mtu_size_is_set()
+
+        self.assertFalse(mtu_size_is_set)
 
 
 class TestRoute(unittest.TestCase):
