@@ -26,8 +26,8 @@ from ops import (
 from upf_network import UPFNetwork
 
 UPF_SNAP_NAME = "sdcore-upf"
-UPF_SNAP_CHANNEL = "latest/edge"
-UPF_SNAP_REVISION = "36"
+UPF_SNAP_CHANNEL = "1.4/edge"
+UPF_SNAP_REVISION = "42"
 UPF_CONFIG_FILE_NAME = "upf.json"
 UPF_CONFIG_PATH = "/var/snap/sdcore-upf/common"
 PFCP_PORT = 8805
@@ -81,9 +81,7 @@ class SdcoreUpfCharm(ops.CharmBase):
             return
         if invalid_network_interfaces := self._network.get_invalid_network_interfaces():
             event.add_status(
-                BlockedStatus(
-                    f"Network interfaces are not valid: {invalid_network_interfaces}"
-                )
+                BlockedStatus(f"Network interfaces are not valid: {invalid_network_interfaces}")
             )
             return
         if not self._network.is_configured():
@@ -179,19 +177,14 @@ class SdcoreUpfCharm(ops.CharmBase):
             upf_snap.hold()
             logger.info("UPF snap installed")
         except SnapError as e:
-            logger.error(
-                "An exception occurred when installing the UPF snap. Reason: %s", str(e)
-            )
+            logger.error("An exception occurred when installing the UPF snap. Reason: %s", str(e))
             raise e
 
     def _upf_snap_installed(self) -> bool:
         """Check if the UPF snap is installed."""
         snap_cache = SnapCache()
         upf_snap = snap_cache[UPF_SNAP_NAME]
-        return (
-            upf_snap.state == SnapState.Latest
-            and upf_snap.revision == UPF_SNAP_REVISION
-        )
+        return upf_snap.state == SnapState.Latest and upf_snap.revision == UPF_SNAP_REVISION
 
     def _start_upf_service(self) -> None:
         """Start the UPF service."""
@@ -244,9 +237,7 @@ class SdcoreUpfCharm(ops.CharmBase):
 
         while not self._is_bessd_grpc_service_ready():
             if time.time() - initial_time > timeout:
-                raise TimeoutError(
-                    "Timed out waiting for bessd gRPC server to become ready"
-                )
+                raise TimeoutError("Timed out waiting for bessd gRPC server to become ready")
             time.sleep(2)
 
     def _is_bessd_grpc_service_ready(self) -> bool:
@@ -310,9 +301,8 @@ class SdcoreUpfCharm(ops.CharmBase):
             pod_share_path=UPF_CONFIG_PATH,
             enable_hw_checksum=self._charm_config.enable_hw_checksum,
         )
-        if (
-            not self._upf_config_file_is_written()
-            or not self._upf_config_file_content_matches(content=content)
+        if not self._upf_config_file_is_written() or not self._upf_config_file_content_matches(
+            content=content
         ):
             self._write_upf_config_file(content=content)
 
@@ -322,9 +312,7 @@ class SdcoreUpfCharm(ops.CharmBase):
 
     def _upf_config_file_content_matches(self, content: str) -> bool:
         """Return whether the UPF config file content matches the provided content."""
-        existing_content = self._machine.pull(
-            path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}"
-        )
+        existing_content = self._machine.pull(path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}")
         try:
             return json.loads(existing_content) == json.loads(content)
         except json.JSONDecodeError:
@@ -332,9 +320,7 @@ class SdcoreUpfCharm(ops.CharmBase):
 
     def _write_upf_config_file(self, content: str) -> None:
         """Write the UPF config file to the workload."""
-        self._machine.push(
-            path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}", source=content
-        )
+        self._machine.push(path=f"{UPF_CONFIG_PATH}/{UPF_CONFIG_FILE_NAME}", source=content)
         logger.info("Pushed %s config file", UPF_CONFIG_FILE_NAME)
 
     def _get_upf_hostname(self) -> str:
