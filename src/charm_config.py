@@ -45,20 +45,20 @@ class UpfConfig(BaseModel):  # pylint: disable=too-few-public-methods
         """Represent config for Pydantic model."""
         alias_generator = to_kebab
 
-    dnn: StrictStr = Field(default="internet", min_length=1)
-    gnb_subnet: IPvAnyNetwork = Field(default="192.168.251.0/24")  # type: ignore
-    access_interface_name: StrictStr = Field(default="eth0")
-    access_ip: str = Field(default="192.168.252.3/24")
-    access_gateway_ip: IPvAnyAddress = Field(default="192.168.252.1")
+    dnn: StrictStr
+    gnb_subnet: IPvAnyNetwork
+    access_interface_name: StrictStr
+    access_ip: str
+    access_gateway_ip: IPvAnyAddress
     access_interface_mtu_size: Optional[int] = Field(
         default=None, ge=1200, le=65535, validate_default=True
     )
-    core_interface_name: StrictStr = Field(default="eth1")
-    core_ip: str = Field(default="192.168.250.3/24")
-    core_gateway_ip: IPvAnyAddress = Field(default="192.168.250.1")
+    core_interface_name: StrictStr
+    core_ip: str
+    core_gateway_ip: IPvAnyAddress
     core_interface_mtu_size: Optional[int] = Field(default=None, ge=1200, le=65535)
-    external_upf_hostname: StrictStr = Field(default="")
-    enable_hw_checksum: bool = True
+    external_upf_hostname: Optional[StrictStr]
+    enable_hw_checksum: bool
 
     @validator("gnb_subnet")
     @classmethod
@@ -98,7 +98,7 @@ class CharmConfig:
     core_ip: StrictStr
     core_gateway_ip: IPvAnyAddress
     core_interface_mtu_size: Optional[int]
-    external_upf_hostname: Optional[StrictStr]
+    external_upf_hostname: Optional[str]
     enable_hw_checksum: bool
 
     def __init__(self, *, upf_config: UpfConfig):
