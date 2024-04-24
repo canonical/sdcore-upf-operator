@@ -118,7 +118,8 @@ class TestNetworkInterface(unittest.TestCase):
         self.interface_mtu_size = 1400
         self.network_interface = NetworkInterface(
             name=self.network_interface_name,
-            ip_address=self.interface_ipv4_address
+            ip_address=self.interface_ipv4_address,
+            mtu_size=1500,
         )
         self.network_interface.network_db = MockNDB()
         self.network_interface.ip_route = MockIPRoute(routes=[])

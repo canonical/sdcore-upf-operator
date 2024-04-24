@@ -21,7 +21,7 @@ class UPFNetworkError(Exception):
 class NetworkInterface:
     """A class to interact with a network interface."""
 
-    def __init__(self, name: str, ip_address: str, mtu_size: int = 1500):
+    def __init__(self, name: str, ip_address: str, mtu_size: int):
         self.network_db = NDB()
         self.ip_route = IPRoute()
         self.name = name
