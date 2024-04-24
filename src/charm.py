@@ -41,6 +41,7 @@ class SdcoreUpfCharm(ops.CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
+        self.framework.observe(self.on.collect_unit_status, self._on_collect_status)
         self._machine = Machine()
         self._cos_agent = COSAgentProvider(
             self,
@@ -66,7 +67,6 @@ class SdcoreUpfCharm(ops.CharmBase):
             gnb_subnet=str(self._charm_config.gnb_subnet),
         )
         self.fiveg_n4_provider = N4Provides(charm=self, relation_name="fiveg_n4")
-        self.framework.observe(self.on.collect_unit_status, self._on_collect_status)
         self.framework.observe(self.on.install, self._configure)
         self.framework.observe(self.on.update_status, self._configure)
         self.framework.observe(self.on.config_changed, self._configure)
