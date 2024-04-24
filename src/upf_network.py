@@ -37,10 +37,6 @@ class NetworkInterface:
         if not self.exists():
             logger.warning("Interface %s does not exist", self.name)
             return False
-        # ip_address = self.get_ip_address()
-        # if not ip_address:
-        #     logger.warning("IP address for interface %s is empty", self.name)
-        #     return False
         return True
 
     def get_ip_address(self) -> str:
@@ -62,16 +58,16 @@ class NetworkInterface:
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
         try:
             iface_record = interfaces[self.name]
-            ip_addresses = iface_record.ipaddr
-            for ip in ip_addresses:
-                if ip.family == AF_INET:
-                    logger.info("Found IP: %s/%s", ip.address, ip.prefixlen)
-                    if f"{ip.address}/{ip.prefixlen}" != self.ip_address:
-                        return False
-            if not self.get_ip_address():
-                return False
         except KeyError:
             logger.warning("Interface %s not found in the network database", self.name)
+            return False
+        ip_addresses = iface_record.ipaddr
+        for ip in ip_addresses:
+            if ip.family == AF_INET:
+                logger.info("Found IP: %s/%s", ip.address, ip.prefixlen)
+                if f"{ip.address}/{ip.prefixlen}" != self.ip_address:
+                    return False
+        if not self.get_ip_address():
             return False
         return True
 
@@ -80,20 +76,21 @@ class NetworkInterface:
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
         try:
             iface_record = interfaces[self.name]
-            ip_addresses = iface_record.ipaddr
-            # remove all unrequired IPs
-            for ip in ip_addresses:
-                if ip.family == AF_INET:
-                    if ip.address != self.ip_address:
-                        logger.info("Removing IP %s/%s from interface %s",
-                                    ip.address, ip.prefixlen, self.name)
-                        iface_record.del_ip(f"{ip.address}/{ip.prefixlen}").commit()
-            # add requested IP if not already there
-            if not self.get_ip_address():
-                logger.info("Adding IP %s to interface %s", self.ip_address, self.name)
-                iface_record.add_ip(self.ip_address).commit()
         except KeyError:
             logger.warning("Interface %s not found in the network database", self.name)
+            return
+        ip_addresses = iface_record.ipaddr
+        # remove all unrequired IPs
+        for ip in ip_addresses:
+            if ip.family == AF_INET:
+                if ip.address != self.ip_address:
+                    logger.info("Removing IP %s/%s from interface %s",
+                                ip.address, ip.prefixlen, self.name)
+                    iface_record.del_ip(f"{ip.address}/{ip.prefixlen}").commit()
+        # add requested IP if not already there
+        if not self.get_ip_address():
+            logger.info("Adding IP %s to interface %s", self.ip_address, self.name)
+            iface_record.add_ip(self.ip_address).commit()
 
     def mtu_size_is_set(self) -> bool:
         """Check if MTU size of the given network interface is already configured ."""
