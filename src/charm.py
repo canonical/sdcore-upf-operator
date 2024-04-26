@@ -131,6 +131,7 @@ class SdcoreUpfCharm(ops.CharmBase):
             if upf_snap.services.get(service):
                 upf_snap.stop(services=[service])
         upf_snap.ensure(SnapState.Absent)
+        self._network.clean_configuration()
 
     def _on_fiveg_n4_request(self, event) -> None:
         """Handle 5G N4 requests events.

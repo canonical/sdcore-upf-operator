@@ -558,6 +558,76 @@ class TestUPFNetwork(unittest.TestCase):
     @patch("upf_network.IPTablesRule")
     @patch("upf_network.Route")
     @patch("upf_network.NetworkInterface")
+    def test_given_default_route_not_created_when_clean_then_delete_is_not_called(
+        self, mock_network_interface, mock_route, _
+    ):
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        mock_default_route_instance = MagicMock()
+        mock_ran_route_instance = MagicMock()
+        mock_route.side_effect = [mock_default_route_instance, mock_ran_route_instance]
+        mock_default_route_instance.exists.return_value = False
+        mock_ran_route_instance.exists.return_value = True
+        upf_network = UPFNetwork(
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.clean_configuration()
+
+        mock_default_route_instance.delete.assert_not_called()
+
+    @patch("upf_network.IPTablesRule")
+    @patch("upf_network.Route")
+    @patch("upf_network.NetworkInterface")
+    def test_given_default_route_created_when_clean_then_delete_is_called(
+        self, mock_network_interface, mock_route, _
+    ):
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        mock_default_route_instance = MagicMock()
+        mock_ran_route_instance = MagicMock()
+        mock_route.side_effect = [mock_default_route_instance, mock_ran_route_instance]
+        mock_default_route_instance.exists.return_value = True
+        mock_ran_route_instance.exists.return_value = True
+        upf_network = UPFNetwork(
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.clean_configuration()
+
+        mock_default_route_instance.delete.assert_called_once()
+
+    @patch("upf_network.IPTablesRule")
+    @patch("upf_network.Route")
+    @patch("upf_network.NetworkInterface")
     def test_given_ran_route_not_created_when_configure_then_route_is_created(
         self, mock_network_interface, mock_route, _
     ):
@@ -624,6 +694,74 @@ class TestUPFNetwork(unittest.TestCase):
     @patch("upf_network.IPTablesRule")
     @patch("upf_network.Route")
     @patch("upf_network.NetworkInterface")
+    def test_given_ran_route_not_created_when_clean_then_delete_is_not_called(
+        self, mock_network_interface, mock_route, _
+    ):
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        mock_default_route_instance = MagicMock()
+        mock_ran_route_instance = MagicMock()
+        mock_route.side_effect = [mock_default_route_instance, mock_ran_route_instance]
+        mock_ran_route_instance.exists.return_value = False
+        upf_network = UPFNetwork(
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.clean_configuration()
+
+        mock_ran_route_instance.delete.assert_not_called()
+
+    @patch("upf_network.IPTablesRule")
+    @patch("upf_network.Route")
+    @patch("upf_network.NetworkInterface")
+    def test_given_ran_route_created_when_clean_then_delete_is_called(
+        self, mock_network_interface, mock_route, _
+    ):
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        mock_default_route_instance = MagicMock()
+        mock_ran_route_instance = MagicMock()
+        mock_route.side_effect = [mock_default_route_instance, mock_ran_route_instance]
+        mock_ran_route_instance.exists.return_value = True
+        upf_network = UPFNetwork(
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.clean_configuration()
+
+        mock_ran_route_instance.delete.assert_called_once()
+
+    @patch("upf_network.IPTablesRule")
+    @patch("upf_network.Route")
+    @patch("upf_network.NetworkInterface")
     def test_given_iptables_rule_not_created_when_configure_then_rule_is_created(
         self, mock_network_interface, _, mock_iptables_rule
     ):
@@ -682,6 +820,72 @@ class TestUPFNetwork(unittest.TestCase):
         upf_network.configure()
 
         mock_iptables_rule_instance.create.assert_not_called()
+
+    @patch("upf_network.IPTablesRule")
+    @patch("upf_network.Route")
+    @patch("upf_network.NetworkInterface")
+    def test_given_iptables_rule_not_created_when_clean_then_delete_is_not_called(
+        self, mock_network_interface, _, mock_iptables_rule
+    ):
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        mock_iptables_rule_instance = MagicMock()
+        mock_iptables_rule.return_value = mock_iptables_rule_instance
+        mock_iptables_rule_instance.exists.return_value = False
+        upf_network = UPFNetwork(
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.clean_configuration()
+
+        mock_iptables_rule_instance.delete.assert_not_called()
+
+    @patch("upf_network.IPTablesRule")
+    @patch("upf_network.Route")
+    @patch("upf_network.NetworkInterface")
+    def test_given_iptables_rule_created_when_clean_then_delete_is_called(
+        self, mock_network_interface, _, mock_iptables_rule
+    ):
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        mock_iptables_rule_instance = MagicMock()
+        mock_iptables_rule.return_value = mock_iptables_rule_instance
+        mock_iptables_rule_instance.exists.return_value = True
+        upf_network = UPFNetwork(
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.clean_configuration()
+
+        mock_iptables_rule_instance.delete.assert_called_once()
 
     @patch("upf_network.IPTablesRule")
     @patch("upf_network.Route")
@@ -810,6 +1014,134 @@ class TestUPFNetwork(unittest.TestCase):
         upf_network.configure()
 
         mock_core_interface_instance.set_ip_address.assert_not_called()
+
+    @patch("upf_network.IPTablesRule")
+    @patch("upf_network.Route")
+    @patch("upf_network.NetworkInterface")
+    def test_given_access_address_set_when_clean_then_unset_address_is_called(
+        self, mock_network_interface, _, __,
+    ):
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.get_ip_address.return_value = self.access_ip
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.get_ip_address.return_value = ""
+        mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        upf_network = UPFNetwork(
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.clean_configuration()
+
+        mock_access_interface_instance.unset_ip_address.assert_called_once()
+
+    @patch("upf_network.IPTablesRule")
+    @patch("upf_network.Route")
+    @patch("upf_network.NetworkInterface")
+    def test_given_core_address_set_when_clean_then_unset_address_is_called(
+        self, mock_network_interface, _, __,
+    ):
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.get_ip_address.return_value = ""
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.get_ip_address.return_value = self.core_ip
+        mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        upf_network = UPFNetwork(
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.clean_configuration()
+
+        mock_core_interface_instance.unset_ip_address.assert_called_once()
+
+    @patch("upf_network.IPTablesRule")
+    @patch("upf_network.Route")
+    @patch("upf_network.NetworkInterface")
+    def test_given_access_address_not_set_when_clean_then_unset_address_is_not_called(
+        self, mock_network_interface, _, __,
+    ):
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.get_ip_address.return_value = ""
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.get_ip_address.return_value = self.core_ip
+        mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        upf_network = UPFNetwork(
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.clean_configuration()
+
+        mock_access_interface_instance.unset_ip_address.assert_not_called()
+
+    @patch("upf_network.IPTablesRule")
+    @patch("upf_network.Route")
+    @patch("upf_network.NetworkInterface")
+    def test_given_core_address_not_set_when_clean_then_unset_address_is_not_called(
+        self, mock_network_interface, _, __,
+    ):
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.get_ip_address.return_value = self.access_ip
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.get_ip_address.return_value = ""
+        mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        upf_network = UPFNetwork(
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.clean_configuration()
+
+        mock_core_interface_instance.unset_ip_address.assert_not_called()
 
     @patch("upf_network.IPTablesRule")
     @patch("upf_network.Route")
