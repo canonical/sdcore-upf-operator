@@ -10,13 +10,13 @@ on:
 
 jobs:
   lint-report:
-    uses: canonical/sdcore-github-workflows/.github/workflows/lint-report.yaml@v0.0.1
+    uses: canonical/sdcore-github-workflows/.github/workflows/lint-report.yaml@v1.0.0
 
   static-analysis:
-    uses: canonical/sdcore-github-workflows/.github/workflows/static-analysis.yaml@v0.0.1
+    uses: canonical/sdcore-github-workflows/.github/workflows/static-analysis.yaml@v1.0.0
 
   unit-tests-with-coverage:
-    uses: canonical/sdcore-github-workflows/.github/workflows/unit-test.yaml@v0.0.1
+    uses: canonical/sdcore-github-workflows/.github/workflows/unit-test.yaml@v1.0.0
 
   integration-test:
     uses: ./.github/workflows/integration-tests.yaml
@@ -31,7 +31,7 @@ jobs:
       - unit-tests-with-coverage
       - integration-test
     if: ${{ github.ref_name == 'main' }}
-    uses: canonical/sdcore-github-workflows/.github/workflows/publish-charm.yaml@v0.0.1
+    uses: canonical/sdcore-github-workflows/.github/workflows/publish-charm.yaml@v1.0.0
     with:
       charm-file-name: "sdcore-upf_ubuntu-22.04-amd64.charm"
       track-name: 1.4
@@ -45,7 +45,7 @@ jobs:
       - unit-tests-with-coverage
       - integration-test
     if: ${{ (github.ref_name != 'main') && (github.event_name == 'push') }}
-    uses: canonical/sdcore-github-workflows/.github/workflows/publish-charm.yaml@v0.0.1
+    uses: canonical/sdcore-github-workflows/.github/workflows/publish-charm.yaml@v1.0.0
     with:
       branch-name: ${{ github.ref_name }}
       charm-file-name: "sdcore-upf_ubuntu-22.04-amd64.charm"
