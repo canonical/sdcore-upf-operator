@@ -21,7 +21,7 @@ class UPFNetworkError(Exception):
 class NetworkInterface:
     """A class to interact with a network interface."""
 
-    def __init__(self, name: str, ip_address: str, mtu_size: int):
+    def __init__(self, name: str, ip_address: str, mtu_size: int = 1500):
         self.network_db = NDB()
         self.ip_route = IPRoute()
         self.name = name
@@ -91,6 +91,17 @@ class NetworkInterface:
         if not self.get_ip_address():
             logger.info("Adding IP %s to interface %s", self.ip_address, self.name)
             iface_record.add_ip(self.ip_address).commit()
+
+    def unset_ip_address(self) -> None:
+        """Remove the configured IP address from the given network interface."""
+        interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
+        try:
+            iface_record = interfaces[self.name]
+        except KeyError:
+            logger.warning("Interface %s not found in the network database", self.name)
+            return
+        logger.info("Removing IP %s from interface %s", self.ip_address, self.name)
+        iface_record.del_ip(self.ip_address).commit()
 
     def mtu_size_is_set(self) -> bool:
         """Check if MTU size of the given network interface is already configured ."""
@@ -186,6 +197,22 @@ class Route:
             "Route to %s via %s created/updated successfully", self.destination, self.gateway
         )
 
+    def delete(self) -> None:
+        """Delete the route."""
+        try:
+            self.ip_route.route(
+                "delete",
+                dst=self.destination,
+                gateway=self.gateway,
+                oif=self.oif,
+                priority=self.metric,
+            )
+        except NetlinkError as e:
+            UPFNetworkError(f"Failed to delete the route: {e}")
+        logger.info(
+            "Route to %s via %s deleted successfully", self.destination, self.gateway
+        )
+
 
 class IPTablesRule:
     """A class to interact with an iptables rule."""
@@ -214,6 +241,17 @@ class IPTablesRule:
         rule.target = iptc.Target(rule, "DROP")
         self.chain.insert_rule(rule)
         logger.info("Iptables rule for ICMP port-unreachable packets created.")
+
+    def delete(self) -> None:
+        """Delete iptable rule in the OUTPUT chain to block ICMP port-unreachable packets."""
+        rule = iptc.Rule()
+        rule.protocol = "icmp"
+        match = iptc.Match(rule, "icmp")
+        match.icmp_type = "port-unreachable"
+        rule.add_match(match)
+        rule.target = iptc.Target(rule, "DROP")
+        self.chain.delete_rule(rule)
+        logger.info("Iptables rule for ICMP port-unreachable packets deleted.")
 
 
 class UPFNetwork:
@@ -293,3 +331,16 @@ class UPFNetwork:
             and self.ip_tables_rule.exists()
         )
         return ifaces_are_configured and routes_are_configured
+
+    def clean_configuration(self) -> None:
+        """Remove the configured IPs/routes from the networking."""
+        if self.access_interface.get_ip_address():
+            self.access_interface.unset_ip_address()
+        if self.core_interface.get_ip_address():
+            self.core_interface.unset_ip_address()
+        if self.default_route.exists():
+            self.default_route.delete()
+        if self.ran_route.exists():
+            self.ran_route.delete()
+        if self.ip_tables_rule.exists():
+            self.ip_tables_rule.delete()
