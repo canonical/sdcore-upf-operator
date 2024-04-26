@@ -2,7 +2,6 @@
 # Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-import asyncio
 import json
 import logging
 import os
@@ -69,10 +68,7 @@ class TestUPFMachineCharm:
         self, ops_test: OpsTest, deploy
     ):
         await ops_test.model.connect(model_name=MODEL_NAME)
-        await asyncio.gather(
-            deploy,
-            ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000),
-        )
+        await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
 
     @pytest.mark.abort_on_fail
     async def test_given_upf_machine_charm_is_deployed_when_inspect_upf_config_file_then_access_and_core_interfaces_match_charm_config(  # noqa: E501
