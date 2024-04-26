@@ -750,7 +750,7 @@ class TestUPFNetwork(unittest.TestCase):
     @patch("upf_network.IPTablesRule")
     @patch("upf_network.Route")
     @patch("upf_network.NetworkInterface")
-    def test_given_access_address_set_when_configure_then_address_is_not_set(
+    def test_given_access_address_set_when_configure_then_set_address_is_not_called(
         self, mock_network_interface, _, __,
     ):
         mock_access_interface_instance = MagicMock()
@@ -782,7 +782,7 @@ class TestUPFNetwork(unittest.TestCase):
     @patch("upf_network.IPTablesRule")
     @patch("upf_network.Route")
     @patch("upf_network.NetworkInterface")
-    def test_given_core_address_set_when_configure_then_address_is_not_set(
+    def test_given_core_address_set_when_configure_then_set_address_is_not_called(
         self, mock_network_interface, _, __,
     ):
         mock_access_interface_instance = MagicMock()
@@ -882,7 +882,7 @@ class TestUPFNetwork(unittest.TestCase):
     @patch("upf_network.IPTablesRule")
     @patch("upf_network.Route")
     @patch("upf_network.NetworkInterface")
-    def test_given_access_mtu_set_when_configure_then_mtu_is_not_set(
+    def test_given_access_mtu_set_when_configure_then_set_mtu_size_is_not_called(
         self, mock_network_interface, _, __,
     ):
         mock_access_interface_instance = MagicMock()
@@ -916,7 +916,7 @@ class TestUPFNetwork(unittest.TestCase):
     @patch("upf_network.IPTablesRule")
     @patch("upf_network.Route")
     @patch("upf_network.NetworkInterface")
-    def test_given_core_mtu_set_when_configure_then_mtu_is_not_set(
+    def test_given_core_mtu_set_when_configure_then_set_mtu_size_is_not_called(
         self, mock_network_interface, _, __,
     ):
         mock_access_interface_instance = MagicMock()
