@@ -65,28 +65,3 @@ jobs:
       track-name: 1.5
     secrets:
       CHARMCRAFT_AUTH: ${{ secrets.CHARMCRAFT_AUTH }}
-
-  lib-needs-publishing:
-    runs-on: ubuntu-22.04
-    outputs:
-      needs-publishing: ${{ steps.changes.outputs.fiveg_nrf }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: changes
-        with:
-          filters: |
-            fiveg_nrf:
-              - 'lib/charms/sdcore_nrf_k8s/v0/fiveg_nrf.py'
-
-  publish-lib:
-    name: Publish Lib
-    needs:
-      - publish-charm
-      - lib-needs-publishing
-    if: ${{ github.ref_name == 'main' }} && ${{ needs.changes.outputs.needs-publishing == 'true' }}
-    uses: canonical/sdcore-github-workflows/.github/workflows/publish-lib.yaml@v1.0.0
-    with:
-      lib-name: "charms.sdcore_nrf_k8s.v0.fiveg_nrf"
-    secrets:
-      CHARMCRAFT_AUTH: ${{ secrets.CHARMCRAFT_AUTH }}
