@@ -69,7 +69,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         )
         self.framework.observe(self.on.remove, self._on_remove)
 
-    def _on_collect_status(self, event: CollectStatusEvent):
+    def _on_collect_status(self, event: CollectStatusEvent):  # noqa C901
         """Collect unit status."""
         if not self.unit.is_leader():
             event.add_status(BlockedStatus("Scaling is not implemented for this charm"))
@@ -90,11 +90,20 @@ class SdcoreUpfCharm(ops.CharmBase):
         if not self._upf_config_file_is_written():
             event.add_status(WaitingStatus("Waiting for UPF configuration file"))
             return
-        if not self._upf_service_started():
-            event.add_status(WaitingStatus("Waiting for UPF service to start"))
+        if not self._bessd_service_started():
+            event.add_status(WaitingStatus("Waiting for bessd service to start"))
             return
         if not self._is_bessd_grpc_service_ready():
             event.add_status(WaitingStatus("Waiting for bessd gRPC service to start"))
+            return
+        if not self._pfcp_service_started():
+            event.add_status(WaitingStatus("Waiting for pcfp service to start"))
+            return
+        if not self._is_bessd_configured():
+            event.add_status(WaitingStatus("Waiting for bessd worker to start"))
+            return
+        if not self._routectl_service_started():
+            event.add_status(WaitingStatus("Waiting for routectl service to start"))
             return
         event.add_status(ActiveStatus())
 
@@ -111,8 +120,10 @@ class SdcoreUpfCharm(ops.CharmBase):
         self._network.configure()
         self._install_upf_snap()
         self._generate_upf_config_file()
-        self._start_upf_service()
-        self._configure_upf_service()
+        self._start_bessd_service()
+        self._configure_bessd_service()
+        self._start_pfcp_service()
+        self._start_routectl_service()
         self._update_fiveg_n4_relation_data()
 
     def _on_remove(self, event: RemoveEvent):
@@ -186,29 +197,55 @@ class SdcoreUpfCharm(ops.CharmBase):
         upf_snap = snap_cache[UPF_SNAP_NAME]
         return upf_snap.state == SnapState.Latest and upf_snap.revision == UPF_SNAP_REVISION
 
-    def _start_upf_service(self) -> None:
-        """Start the UPF service."""
-        if self._upf_service_started():
+    def _start_bessd_service(self) -> None:
+        """Start the bessd service."""
+        if self._bessd_service_started():
             return
         snap_cache = SnapCache()
         upf_snap = snap_cache[UPF_SNAP_NAME]
         upf_snap.start(services=["bessd"])
-        upf_snap.start(services=["routectl"])
-        upf_snap.start(services=["pfcpiface"])
-        logger.info("UPF service started")
+        logger.info("UPF bessd service started")
 
-    def _upf_service_started(self) -> bool:
-        """Check if the UPF service is started."""
+    def _start_pfcp_service(self) -> None:
+        """Start the PFCP service."""
+        if self._pfcp_service_started():
+            return
+        snap_cache = SnapCache()
+        upf_snap = snap_cache[UPF_SNAP_NAME]
+        upf_snap.start(services=["pfcpiface"])
+        logger.info("UPF pfcpiface service started")
+
+    def _start_routectl_service(self) -> None:
+        """Start the UPF routectl service."""
+        if self._routectl_service_started():
+            return
+        snap_cache = SnapCache()
+        upf_snap = snap_cache[UPF_SNAP_NAME]
+        upf_snap.start(services=["routectl"])
+        logger.info("UPF routectl service started")
+
+    def _bessd_service_started(self) -> bool:
+        """Check if the bessd service is started."""
         snap_cache = SnapCache()
         upf_snap = snap_cache[UPF_SNAP_NAME]
         upf_services = upf_snap.services
-        return (
-            upf_services["bessd"]["active"]
-            and upf_services["routectl"]["active"]
-            and upf_services["pfcpiface"]["active"]
-        )
+        return upf_services["bessd"]["active"]
 
-    def _configure_upf_service(self) -> None:
+    def _pfcp_service_started(self) -> bool:
+        """Check if the pfcp service is started."""
+        snap_cache = SnapCache()
+        upf_snap = snap_cache[UPF_SNAP_NAME]
+        upf_services = upf_snap.services
+        return upf_services["pfcpiface"]["active"]
+
+    def _routectl_service_started(self) -> bool:
+        """Check if the routectl service is started."""
+        snap_cache = SnapCache()
+        upf_snap = snap_cache[UPF_SNAP_NAME]
+        upf_services = upf_snap.services
+        return upf_services["routectl"]["active"]
+
+    def _configure_bessd_service(self) -> None:
         self._wait_for_bessd_grpc_service_to_be_ready()
         self._run_bess_configuration()
 

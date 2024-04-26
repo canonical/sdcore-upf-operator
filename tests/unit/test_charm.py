@@ -84,8 +84,8 @@ class TestCharm(unittest.TestCase):
         upf_snap = MagicMock()
         upf_snap.services = {
             "bessd": {"active": False},
-            "routectl": {"active": False},
             "pfcpiface": {"active": False},
+            "routectl": {"active": False},
         }
         snap_cache = {"sdcore-upf": upf_snap}
         mock_snap_cache.return_value = snap_cache
@@ -95,8 +95,8 @@ class TestCharm(unittest.TestCase):
         upf_snap.start.assert_has_calls(
             calls=[
                 call(services=["bessd"]),
-                call(services=["routectl"]),
                 call(services=["pfcpiface"]),
+                call(services=["routectl"]),
             ]
         )
 
