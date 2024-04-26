@@ -40,88 +40,81 @@ class NetworkInterface:
         return True
 
     def get_ip_address(self) -> str:
-        """Get the IPv4 address of the given network interface."""
+        """Get the IPv4 address of the given network interface.
+
+        Returns:
+            str: first available IP address in CIDR notation
+        """
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
-        try:
-            iface_record = interfaces[self.name]
+        if iface_record := interfaces.get(self.name):
             ip_addresses = iface_record.ipaddr
             for ip in ip_addresses:
                 if ip.family == AF_INET:
                     return f"{ip.address}/{ip.prefixlen}"
             logger.warning("No IPv4 address found for interface %s", self.name)
-        except KeyError:
-            logger.warning("Interface %s not found in the network database", self.name)
+            return ""
+        logger.warning("Interface %s not found in the network database", self.name)
         return ""
 
     def addresses_are_set(self) -> bool:
         """Check if the given network interface is already configured."""
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
-        try:
-            iface_record = interfaces[self.name]
-        except KeyError:
-            logger.warning("Interface %s not found in the network database", self.name)
-            return False
-        ip_addresses = iface_record.ipaddr
-        for ip in ip_addresses:
-            if ip.family == AF_INET:
-                logger.info("Found IP: %s/%s", ip.address, ip.prefixlen)
-                if f"{ip.address}/{ip.prefixlen}" != self.ip_address:
-                    return False
-        if not self.get_ip_address():
-            return False
-        return True
+        if iface_record := interfaces.get(self.name):
+            ip_addresses = iface_record.ipaddr
+            for ip in ip_addresses:
+                if ip.family == AF_INET:
+                    logger.info("Found IP: %s/%s", ip.address, ip.prefixlen)
+                    if f"{ip.address}/{ip.prefixlen}" != self.ip_address:
+                        return False
+            if not self.get_ip_address():
+                return False
+            return True
+        logger.warning("Interface %s not found in the network database", self.name)
+        return False
 
     def set_ip_address(self) -> None:
         """Clean all unrequired IPs and set the IP address for the given network interface."""
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
-        try:
-            iface_record = interfaces[self.name]
-        except KeyError:
-            logger.warning("Interface %s not found in the network database", self.name)
-            return
-        ip_addresses = iface_record.ipaddr
-        # remove all unrequired IPs
-        for ip in ip_addresses:
-            if ip.family == AF_INET:
-                if ip.address != self.ip_address:
-                    logger.info("Removing IP %s/%s from interface %s",
-                                ip.address, ip.prefixlen, self.name)
-                    iface_record.del_ip(f"{ip.address}/{ip.prefixlen}").commit()
-        # add requested IP if not already there
-        if not self.get_ip_address():
-            logger.info("Adding IP %s to interface %s", self.ip_address, self.name)
-            iface_record.add_ip(self.ip_address).commit()
+        if iface_record := interfaces.get(self.name):
+            ip_addresses = iface_record.ipaddr
+            # remove all unrequired IPs
+            for ip in ip_addresses:
+                if ip.family == AF_INET:
+                    if ip.address != self.ip_address:
+                        logger.info("Removing IP %s/%s from interface %s",
+                                    ip.address, ip.prefixlen, self.name)
+                        iface_record.del_ip(f"{ip.address}/{ip.prefixlen}").commit()
+            # add requested IP if not already there
+            if not self.get_ip_address():
+                logger.info("Adding IP %s to interface %s", self.ip_address, self.name)
+                iface_record.add_ip(self.ip_address).commit()
+        logger.warning("Interface %s not found in the network database", self.name)
 
     def unset_ip_address(self) -> None:
         """Remove the configured IP address from the given network interface."""
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
-        try:
-            iface_record = interfaces[self.name]
-        except KeyError:
-            logger.warning("Interface %s not found in the network database", self.name)
+        if iface_record := interfaces.get(self.name):
+            logger.info("Removing IP %s from interface %s", self.ip_address, self.name)
+            iface_record.del_ip(self.ip_address).commit()
             return
-        logger.info("Removing IP %s from interface %s", self.ip_address, self.name)
-        iface_record.del_ip(self.ip_address).commit()
+        logger.warning("Interface %s not found in the network database", self.name)
 
     def mtu_size_is_set(self) -> bool:
         """Check if MTU size of the given network interface is already configured ."""
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
-        try:
-            iface_record = interfaces[self.name]
+        if iface_record := interfaces.get(self.name):
             return iface_record.get("mtu") == self.mtu_size
-        except KeyError:
-            logger.warning("Interface %s not found in the network database", self.name)
-            return False
+        logger.warning("Interface %s not found in the network database", self.name)
+        return False
 
     def set_mtu_size(self) -> None:
         """Set the MTU size for the given network interface."""
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
-        try:
-            iface_record = interfaces[self.name]
+        if iface_record := interfaces.get(self.name):
             logger.info("Setting MTU size to %s for interface %s", self.mtu_size, self.name)
             iface_record.set("mtu", self.mtu_size).commit()
-        except KeyError:
-            logger.warning("Interface %s not found in the network database", self.name)
+            return
+        logger.warning("Interface %s not found in the network database", self.name)
 
     def get_gateway_ip_address(self) -> str:
         """Get the gateway IPv4 address of the given network interface."""

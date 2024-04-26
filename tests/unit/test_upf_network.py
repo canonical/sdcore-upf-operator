@@ -52,6 +52,12 @@ class MockInterfaces:
                 return True
         return False
 
+    def get(self, item):
+        try:
+            return self.__getitem__(item)
+        except KeyError:
+            return None
+
 
 class MockRoute:
 
