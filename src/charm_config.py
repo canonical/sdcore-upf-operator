@@ -16,7 +16,7 @@ from pydantic import (  # pylint: disable=no-name-in-module,import-error
     ValidationError,
     validator,
 )
-from pydantic.networks import IPvAnyNetwork
+from pydantic.networks import IPvAnyAddress, IPvAnyNetwork
 
 logger = logging.getLogger(__name__)
 
@@ -45,18 +45,33 @@ class UpfConfig(BaseModel):  # pylint: disable=too-few-public-methods
         """Represent config for Pydantic model."""
         alias_generator = to_kebab
 
-    dnn: StrictStr = Field(default="internet", min_length=1)
-    gnb_subnet: IPvAnyNetwork = Field(default="192.168.251.0/24")  # type: ignore
-    access_interface_name: StrictStr = Field(default="eth0")
-    core_interface_name: StrictStr = Field(default="eth1")
-    external_upf_hostname: StrictStr = Field(default="")
-    enable_hw_checksum: bool = True
+    dnn: StrictStr
+    gnb_subnet: IPvAnyNetwork
+    access_interface_name: StrictStr
+    access_ip: str
+    access_gateway_ip: IPvAnyAddress
+    access_interface_mtu_size: Optional[int] = Field(
+        default=None, ge=1200, le=65535, validate_default=True
+    )
+    core_interface_name: StrictStr
+    core_ip: str
+    core_gateway_ip: IPvAnyAddress
+    core_interface_mtu_size: Optional[int] = Field(default=None, ge=1200, le=65535)
+    external_upf_hostname: Optional[StrictStr]
+    enable_hw_checksum: bool
 
     @validator("gnb_subnet")
     @classmethod
     def validate_ip_subnet(cls, value):
         """Validate that IP network address is valid."""
         ip_network(value, strict=True)
+        return value
+
+    @validator("access_ip", "core_ip")
+    @classmethod
+    def validate_ip_network_address(cls, value: str) -> str:
+        """Validate that IP network address is valid."""
+        ip_network(value, strict=False)
         return value
 
 
@@ -76,8 +91,14 @@ class CharmConfig:
     dnn: StrictStr
     gnb_subnet: IPvAnyNetwork
     access_interface_name: Optional[StrictStr]
+    access_ip: StrictStr
+    access_gateway_ip: IPvAnyAddress
+    access_interface_mtu_size: Optional[int]
     core_interface_name: Optional[StrictStr]
-    external_upf_hostname: Optional[StrictStr]
+    core_ip: StrictStr
+    core_gateway_ip: IPvAnyAddress
+    core_interface_mtu_size: Optional[int]
+    external_upf_hostname: Optional[str]
     enable_hw_checksum: bool
 
     def __init__(self, *, upf_config: UpfConfig):
@@ -89,7 +110,13 @@ class CharmConfig:
         self.dnn = upf_config.dnn
         self.gnb_subnet = upf_config.gnb_subnet
         self.access_interface_name = upf_config.access_interface_name
+        self.access_ip = upf_config.access_ip
+        self.access_gateway_ip = upf_config.access_gateway_ip
+        self.access_interface_mtu_size = upf_config.access_interface_mtu_size
         self.core_interface_name = upf_config.core_interface_name
+        self.core_ip = upf_config.core_ip
+        self.core_gateway_ip = upf_config.core_gateway_ip
+        self.core_interface_mtu_size = upf_config.core_interface_mtu_size
         self.external_upf_hostname = upf_config.external_upf_hostname
         self.enable_hw_checksum = upf_config.enable_hw_checksum
 
