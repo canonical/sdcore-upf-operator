@@ -41,6 +41,7 @@ class SdcoreUpfCharm(ops.CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
+        self.framework.observe(self.on.collect_unit_status, self._on_collect_status)
         self._machine = Machine()
         self._cos_agent = COSAgentProvider(
             self,
@@ -56,11 +57,16 @@ class SdcoreUpfCharm(ops.CharmBase):
             return
         self._network = UPFNetwork(
             access_interface_name=self._charm_config.access_interface_name,  # type: ignore
+            access_ip=self._charm_config.access_ip,  # type: ignore
+            access_gateway_ip=str(self._charm_config.access_gateway_ip),  # type: ignore
+            access_mtu_size=self._charm_config.access_interface_mtu_size,  # type: ignore
             core_interface_name=self._charm_config.core_interface_name,  # type: ignore
+            core_ip=self._charm_config.core_ip,  # type: ignore
+            core_gateway_ip=str(self._charm_config.core_gateway_ip),  # type: ignore
+            core_mtu_size=self._charm_config.core_interface_mtu_size,  # type: ignore
             gnb_subnet=str(self._charm_config.gnb_subnet),
         )
         self.fiveg_n4_provider = N4Provides(charm=self, relation_name="fiveg_n4")
-        self.framework.observe(self.on.collect_unit_status, self._on_collect_status)
         self.framework.observe(self.on.install, self._configure)
         self.framework.observe(self.on.update_status, self._configure)
         self.framework.observe(self.on.config_changed, self._configure)
@@ -134,6 +140,7 @@ class SdcoreUpfCharm(ops.CharmBase):
             if upf_snap.services.get(service):
                 upf_snap.stop(services=[service])
         upf_snap.ensure(SnapState.Absent)
+        self._network.clean_configuration()
 
     def _on_fiveg_n4_request(self, event) -> None:
         """Handle 5G N4 requests events.
