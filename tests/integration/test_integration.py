@@ -2,7 +2,6 @@
 # Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-import asyncio
 import json
 import logging
 import os
@@ -46,25 +45,30 @@ class TestUPFMachineCharm:
             trust=True,
         )
 
+    @pytest.fixture(scope="module")
+    async def deploy(self, ops_test: OpsTest, request):
+        """Deploy the charm-under-test together with related charms.
+
+        Assert on the unit status before any relations/configurations take place.
+        """
+        assert ops_test.model
+        charm = Path(request.config.getoption("--charm_path")).resolve()
+        await ops_test.model.deploy(
+            charm,
+            application_name=APP_NAME,
+            config={
+                "access-interface-name": ACCESS_INTERFACE_NAME,
+                "core-interface-name": CORE_INTERFACE_NAME,
+            },
+            to=0,
+        )
+
     @pytest.mark.abort_on_fail
     async def test_given_upf_machine_charm_built_when_deploy_than_charm_goes_to_active_status(
-        self, ops_test: OpsTest
+        self, ops_test: OpsTest, deploy
     ):
-        charm = await ops_test.build_charm(".")
         await ops_test.model.connect(model_name=MODEL_NAME)
-
-        await asyncio.gather(
-            ops_test.model.deploy(
-                charm,
-                application_name=APP_NAME,
-                config={
-                    "access-interface-name": ACCESS_INTERFACE_NAME,
-                    "core-interface-name": CORE_INTERFACE_NAME,
-                },
-                to=0,
-            ),
-            ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000),
-        )
+        await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
 
     @pytest.mark.abort_on_fail
     async def test_given_upf_machine_charm_is_deployed_when_inspect_upf_config_file_then_access_and_core_interfaces_match_charm_config(  # noqa: E501

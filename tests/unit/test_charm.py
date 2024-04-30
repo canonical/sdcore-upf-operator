@@ -41,9 +41,7 @@ class TestCharm(unittest.TestCase):
         patch_machine.return_value = self.mock_machine
         self.mock_upf_network = MagicMock()
         self.mock_upf_network.get_invalid_network_interfaces.return_value = []
-        self.mock_upf_network.core_interface.get_ip_address.return_value = (
-            "192.168.250.3"
-        )
+        self.mock_upf_network.core_interface.get_ip_address.return_value = "192.168.250.3"
         patch_network.return_value = self.mock_upf_network
         self.harness = ops.testing.Harness(SdcoreUpfCharm)
         self.addCleanup(self.harness.cleanup)
@@ -72,8 +70,8 @@ class TestCharm(unittest.TestCase):
 
         upf_snap.ensure.assert_called_with(
             SnapState.Latest,
-            channel="latest/edge",
-            revision="36",
+            channel="1.4/edge",
+            revision="42",
             devmode=True,
         )
         upf_snap.hold.assert_called()
@@ -86,8 +84,8 @@ class TestCharm(unittest.TestCase):
         upf_snap = MagicMock()
         upf_snap.services = {
             "bessd": {"active": False},
-            "routectl": {"active": False},
             "pfcpiface": {"active": False},
+            "routectl": {"active": False},
         }
         snap_cache = {"sdcore-upf": upf_snap}
         mock_snap_cache.return_value = snap_cache
@@ -97,15 +95,13 @@ class TestCharm(unittest.TestCase):
         upf_snap.start.assert_has_calls(
             calls=[
                 call(services=["bessd"]),
-                call(services=["routectl"]),
                 call(services=["pfcpiface"]),
+                call(services=["routectl"]),
             ]
         )
 
     @patch("charm.SnapCache")
-    def test_given_upf_services_started_when_remove_then_services_stopped(
-        self, mock_snap_cache
-    ):
+    def test_given_upf_services_started_when_remove_then_services_stopped(self, mock_snap_cache):
         self.harness.set_leader(True)
         upf_snap = MagicMock()
         upf_snap.services = {
@@ -128,7 +124,7 @@ class TestCharm(unittest.TestCase):
 
     @patch("charm.SnapCache")
     def test_given_upf_snap_uninstalled_when_remove_then_services_not_stopped(
-            self, mock_snap_cache
+        self, mock_snap_cache
     ):
         self.harness.set_leader(True)
         upf_snap = MagicMock()
@@ -188,9 +184,7 @@ class TestCharm(unittest.TestCase):
             self.harness.update_config()
 
     @patch("charm.SnapCache")
-    def test_given_unit_is_leader_when_config_changed_then_status_is_active(
-        self, mock_snap_cache
-    ):
+    def test_given_unit_is_leader_when_config_changed_then_status_is_active(self, mock_snap_cache):
         self.harness.set_leader(True)
         upf_snap = MagicMock()
         snap_cache = {"sdcore-upf": upf_snap}
@@ -236,16 +230,14 @@ class TestCharm(unittest.TestCase):
     ):
         self.harness.set_leader(True)
         self.mock_machine.exists.return_value = True
-        self.mock_machine.pull.return_value = read_file(
-            "tests/unit/expected_upf.json"
-        ).strip()
+        self.mock_machine.pull.return_value = read_file("tests/unit/expected_upf.json").strip()
 
         self.harness.update_config()
 
         self.mock_machine.push.assert_not_called()
 
     @patch("charm.SnapCache")
-    def test_given_invalid_config_when_config_changed_then_status_is_blocked(self, _):
+    def test_given_invalid_gnbsubnet_config_when_config_changed_then_status_is_blocked(self, _):
         self.harness.set_leader(True)
         self.harness.update_config({"gnb-subnet": "not an ip address"})
 
@@ -253,9 +245,7 @@ class TestCharm(unittest.TestCase):
 
         self.assertEqual(
             self.harness.model.unit.status,
-            ops.BlockedStatus(
-                "The following configurations are not valid: ['gnb-subnet']"
-            ),
+            ops.BlockedStatus("The following configurations are not valid: ['gnb-subnet']"),
         )
 
     @patch("charm.SnapCache")
@@ -276,9 +266,7 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("charm.SnapCache")
-    def test_given_network_interfaces_valid_when_config_changed_then_routes_are_created(
-        self, _
-    ):
+    def test_given_network_interfaces_valid_when_config_changed_then_routes_are_created(self, _):
         gnb_subnet = "192.168.251.0/24"
         self.harness.set_leader(True)
         self.harness.update_config(
@@ -383,9 +371,7 @@ class TestCharm(unittest.TestCase):
         patched_publish_upf_n4_information.assert_has_calls(expected_calls)
 
     @patch("charm.SnapCache")
-    def test_given_upf_installed_when_remove_then_snap_removed(
-        self, patched_snap_cache
-    ):
+    def test_given_upf_installed_when_remove_then_snap_removed(self, patched_snap_cache):
         self.harness.set_leader(True)
         upf_snap = MagicMock()
         snap_cache = {"sdcore-upf": upf_snap}
@@ -401,3 +387,38 @@ class TestCharm(unittest.TestCase):
             ]
         )
         upf_snap.ensure.assert_called_with(SnapState.Absent)
+
+
+class TestCharmInitialisation(unittest.TestCase):
+    @patch("charm.UPFNetwork")
+    @patch("charm.Machine")
+    def setUp(self, patch_machine, patch_network):
+        self.mock_machine = MagicMock()
+        self.mock_machine.pull.return_value = ""
+        self.mock_process = MagicMock()
+        self.mock_process.wait_output.return_value = ("", "")
+        self.mock_machine.exec.return_value = self.mock_process
+        patch_machine.return_value = self.mock_machine
+        self.mock_upf_network = MagicMock()
+        self.mock_upf_network.get_invalid_network_interfaces.return_value = []
+        self.mock_upf_network.core_interface.get_ip_address.return_value = (
+            "192.168.250.3"
+        )
+        patch_network.return_value = self.mock_upf_network
+        self.harness = ops.testing.Harness(SdcoreUpfCharm)
+        self.addCleanup(self.harness.cleanup)
+
+    @patch("charm.SnapCache")
+    def test_given_invalid_iface_ip_config_when_config_changed_then_status_is_blocked(self, _):
+        self.harness.set_leader(True)
+        self.harness.update_config({"access-ip": "not an ip address"})
+        self.harness.begin()
+
+        self.harness.evaluate_status()
+
+        self.assertEqual(
+            self.harness.model.unit.status,
+            ops.BlockedStatus(
+                "The following configurations are not valid: ['access-ip']"
+            ),
+        )

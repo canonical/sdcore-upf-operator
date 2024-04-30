@@ -11,15 +11,41 @@ options:
   gnb-subnet:
     type: string
     default: 192.168.251.0/24
-    description: gNodeB subnet.
+    description: gNodeB subnet, in CIDR notation.
   access-interface-name:
     type: string
     default: eth0
     description: Name of the UPF's access interface.
+  access-ip:
+    type: string
+    default: 192.168.252.3/24
+    description: IP address used by the UPF's Access interface, in CIDR notation.
+  access-gateway-ip:
+    type: string
+    default: 192.168.252.1
+    description: Gateway IP address to the Access Network.
+  access-interface-mtu-size:
+    type: int
+    default: 1500
+    description: |
+      MTU for the access interface (1200 <= MTU <= 65535) in bytes.
   core-interface-name:
     type: string
     default: eth1
     description: Name of the UPF's core interface.
+  core-ip:
+    type: string
+    default: 192.168.250.3/24
+    description: IP address used by the UPF's Access interface, in CIDR notation.
+  core-gateway-ip:
+    type: string
+    default: 192.168.250.1
+    description: Gateway IP address to the Core Network.
+  core-interface-mtu-size:
+    type: int
+    default: 1500
+    description: |
+      MTU for the core interface (1200 <= MTU <= 65535) in bytes.
   external-upf-hostname:
     type: string
     description: |
