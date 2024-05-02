@@ -32,6 +32,7 @@ UPF_CONFIG_FILE_NAME = "upf.json"
 UPF_CONFIG_PATH = "/var/snap/sdcore-upf/common"
 PFCP_PORT = 8805
 PROMETHEUS_PORT = 8080
+REQUIRED_CPU_EXTENSIONS = ["avx2", "rdrand"]
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,9 @@ class SdcoreUpfCharm(ops.CharmBase):
         except CharmConfigInvalidError as exc:
             event.add_status(BlockedStatus(exc.msg))
             return
+        if not self._is_cpu_compatible():
+            event.add_status(BlockedStatus("CPU is not compatible, see logs for more details"))
+            return
         self._network = self._get_network_configuration()
         if invalid_network_interfaces := self._network.get_invalid_network_interfaces():
             event.add_status(
@@ -107,6 +111,8 @@ class SdcoreUpfCharm(ops.CharmBase):
     def _configure(self, _):
         """Handle UPF installation."""
         if not self.unit.is_leader():
+            return
+        if not self._is_cpu_compatible():
             return
         try:
             self._charm_config: CharmConfig = CharmConfig.from_charm(charm=self)
@@ -380,6 +386,42 @@ class SdcoreUpfCharm(ops.CharmBase):
 
     def _get_upf_mode(self) -> str:
         return "af_packet"
+
+    def _get_cpu_extensions(self) -> list[str]:
+        """Return a list of extensions (instructions) supported by the CPU.
+
+        Returns:
+            list: List of extensions (instructions) supported by the CPU.
+        """
+        process = self._machine.exec(command="lscpu", timeout=10)
+        try:
+            (cpu_info, stderr) = process.wait_output()
+        except ExecError as e:
+            logger.info("Failed running `lscpu`: %s", e)
+            return []
+        cpu_flags = []
+        for cpu_info_item in cpu_info.decode().split("\n"):
+            if "Flags:" in cpu_info_item:
+                cpu_flags = cpu_info_item.split()
+                del cpu_flags[0]
+        return cpu_flags
+
+    def _is_cpu_compatible(self) -> bool:
+        """Return whether the CPU meets requirements to run this charm.
+
+        Returns:
+            bool: Whether the CPU meets requirements to run this charm
+        """
+        if not all(
+            required_extension in self._get_cpu_extensions()
+            for required_extension in REQUIRED_CPU_EXTENSIONS
+        ):
+            logger.warning(
+                "Please use a CPU that has the following capabilities: %s",
+                ", ".join(REQUIRED_CPU_EXTENSIONS),
+            )
+            return False
+        return True
 
 
 def render_upf_config_file(
