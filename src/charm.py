@@ -55,17 +55,7 @@ class SdcoreUpfCharm(ops.CharmBase):
             self._charm_config: CharmConfig = CharmConfig.from_charm(charm=self)
         except CharmConfigInvalidError:
             return
-        self._network = UPFNetwork(
-            access_interface_name=self._charm_config.access_interface_name,  # type: ignore
-            access_ip=self._charm_config.access_ip,  # type: ignore
-            access_gateway_ip=str(self._charm_config.access_gateway_ip),  # type: ignore
-            access_mtu_size=self._charm_config.access_interface_mtu_size,  # type: ignore
-            core_interface_name=self._charm_config.core_interface_name,  # type: ignore
-            core_ip=self._charm_config.core_ip,  # type: ignore
-            core_gateway_ip=str(self._charm_config.core_gateway_ip),  # type: ignore
-            core_mtu_size=self._charm_config.core_interface_mtu_size,  # type: ignore
-            gnb_subnet=str(self._charm_config.gnb_subnet),
-        )
+        self._network = self._get_network_configuration()
         self.fiveg_n4_provider = N4Provides(charm=self, relation_name="fiveg_n4")
         self.framework.observe(self.on.install, self._configure)
         self.framework.observe(self.on.update_status, self._configure)
@@ -85,6 +75,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         except CharmConfigInvalidError as exc:
             event.add_status(BlockedStatus(exc.msg))
             return
+        self._network = self._get_network_configuration()
         if invalid_network_interfaces := self._network.get_invalid_network_interfaces():
             event.add_status(
                 BlockedStatus(f"Network interfaces are not valid: {invalid_network_interfaces}")
@@ -117,12 +108,15 @@ class SdcoreUpfCharm(ops.CharmBase):
         """Handle UPF installation."""
         if not self.unit.is_leader():
             return
-        if self._network.get_invalid_network_interfaces():
-            return
         try:
             self._charm_config: CharmConfig = CharmConfig.from_charm(charm=self)
         except CharmConfigInvalidError:
             return
+
+        self._network = self._get_network_configuration()
+        if self._network.get_invalid_network_interfaces():
+            return
+
         self._network.configure()
         self._install_upf_snap()
         self._generate_upf_config_file()
@@ -131,6 +125,20 @@ class SdcoreUpfCharm(ops.CharmBase):
         self._start_pfcp_service()
         self._start_routectl_service()
         self._update_fiveg_n4_relation_data()
+
+    def _get_network_configuration(self) -> UPFNetwork:
+        """Get the network configuration for the UPF service."""
+        return UPFNetwork(
+            access_interface_name=self._charm_config.access_interface_name,  # type: ignore
+            access_ip=self._charm_config.access_ip,  # type: ignore
+            access_gateway_ip=str(self._charm_config.access_gateway_ip),  # type: ignore
+            access_mtu_size=self._charm_config.access_interface_mtu_size,  # type: ignore
+            core_interface_name=self._charm_config.core_interface_name,  # type: ignore
+            core_ip=self._charm_config.core_ip,  # type: ignore
+            core_gateway_ip=str(self._charm_config.core_gateway_ip),  # type: ignore
+            core_mtu_size=self._charm_config.core_interface_mtu_size,  # type: ignore
+            gnb_subnet=str(self._charm_config.gnb_subnet),
+        )
 
     def _on_remove(self, event: RemoveEvent):
         """Stop the upf services and uninstall snap."""
