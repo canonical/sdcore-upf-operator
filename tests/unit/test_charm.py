@@ -189,16 +189,15 @@ class TestCharm(unittest.TestCase):
     def test_bess_configuration_timeout_error_raised_on_exec_error(
         self, mock_snap_cache, mock_time, mock_sleep, patch_network
     ):
-        mock_time.side_effect = count(start=1)
+        mock_time.side_effect = count(start=1, step=60)
         mock_sleep.return_value = None
         self.harness.set_leader(True)
         upf_snap = MagicMock()
-        self.mock_process.wait_output.side_effect = ExecError(
-            command="whatever",
-            exit_code=1,
-            stdout="",
-            stderr="",
-        )
+        self.mock_process.wait_output.side_effect = [
+            (b"Flags: avx2 rdrand", ""),
+            (b"Flags: avx2 rdrand", ""),
+            ExecError(command="whatever", exit_code=1, stdout="", stderr=""),
+        ]
         snap_cache = {"sdcore-upf": upf_snap}
         mock_snap_cache.return_value = snap_cache
 
@@ -474,10 +473,15 @@ class TestCharm(unittest.TestCase):
             ops.BlockedStatus("CPU is not compatible, see logs for more details"),
         )
 
+    @patch("charm.UPFNetwork")
     @patch("charm.SnapCache")
     def test_given_cpu_compatible_when_install_then_status_is_active(
-        self, _
+        self, _, patch_network
     ):
+        self.mock_upf_network = MagicMock()
+        self.mock_upf_network.get_invalid_network_interfaces.return_value = []
+        self.mock_upf_network.core_interface.get_ip_address.return_value = "192.168.250.3"
+        patch_network.return_value = self.mock_upf_network
         self.harness.set_leader(True)
         self.harness.charm.on.install.emit()
 
