@@ -36,7 +36,7 @@ class TestCharm(unittest.TestCase):
         self.mock_machine = MagicMock()
         self.mock_machine.pull.return_value = ""
         self.mock_process = MagicMock()
-        self.mock_process.wait_output.return_value = (b"Flags: avx2 rdrand", "")
+        self.mock_process.wait_output.return_value = ("Flags: avx2 rdrand", "")
         self.mock_machine.exec.return_value = self.mock_process
         patch_machine.return_value = self.mock_machine
         self.mock_upf_network = MagicMock()
@@ -164,9 +164,9 @@ class TestCharm(unittest.TestCase):
         patch_network.return_value = self.mock_upf_network
 
         self.mock_process.wait_output.side_effect = [
-            (b"Flags: avx2 rdrand", ""),
-            (b"Flags: avx2 rdrand", ""),
-            (b"Flags: avx2 rdrand", ""),
+            ("Flags: avx2 rdrand", ""),
+            ("Flags: avx2 rdrand", ""),
+            ("Flags: avx2 rdrand", ""),
             ExecError(
                 command="configuration check",
                 exit_code=1,
@@ -194,8 +194,8 @@ class TestCharm(unittest.TestCase):
         self.harness.set_leader(True)
         upf_snap = MagicMock()
         self.mock_process.wait_output.side_effect = [
-            (b"Flags: avx2 rdrand", ""),
-            (b"Flags: avx2 rdrand", ""),
+            ("Flags: avx2 rdrand", ""),
+            ("Flags: avx2 rdrand", ""),
             ExecError(command="whatever", exit_code=1, stdout="", stderr=""),
         ]
         snap_cache = {"sdcore-upf": upf_snap}
@@ -462,7 +462,7 @@ class TestCharm(unittest.TestCase):
     def test_given_cpu_not_compatible_when_install_then_status_is_blocked(
         self, _
     ):
-        self.mock_process.wait_output.return_value = (b"Flags: ssse3 fma cx16 rdrand", "")
+        self.mock_process.wait_output.return_value = ("Flags: ssse3 fma cx16 rdrand", "")
         self.harness.set_leader(True)
         self.harness.charm.on.install.emit()
 

@@ -400,7 +400,7 @@ class SdcoreUpfCharm(ops.CharmBase):
             logger.info("Failed running `lscpu`: %s", e)
             return []
         cpu_flags = []
-        for cpu_info_item in cpu_info.decode().split("\n"):
+        for cpu_info_item in cpu_info.split("\n"):
             if "Flags:" in cpu_info_item:
                 cpu_flags = cpu_info_item.split()
                 del cpu_flags[0]
