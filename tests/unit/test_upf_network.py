@@ -1,12 +1,12 @@
 # Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-import unittest
 from socket import AF_INET, AF_INET6
 from typing import List
 from unittest.mock import MagicMock, Mock, patch
 
 import iptc
+import pytest
 from pyroute2 import NetlinkError
 from upf_network import IPTablesRule, NetworkInterface, Route, UPFNetwork, UPFNetworkError
 
@@ -76,7 +76,7 @@ class MockRoute:
             return self.destination_network.split("/")[1]
         return ""
 
-    def get_attr(self, attr: str) -> str:
+    def get_attr(self, attr: str) -> [str, int]:
         if attr == "RTA_GATEWAY":
             return self.gateway
         if attr == "RTA_OIF":
@@ -114,11 +114,14 @@ class MockNDB:
         return self.interfaces[key]
 
 
-class TestNetworkInterface(unittest.TestCase):
+class TestNetworkInterface:
+    patcher_iproute = patch("pyroute2.IPRoute")
+    patcher_ndb = patch("pyroute2.NDB")
 
-    @patch("pyroute2.IPRoute")
-    @patch("pyroute2.NDB")
-    def setUp(self, mock_ndb, mock_ip_route):
+    @pytest.fixture(autouse=True)
+    def setup(self, request):
+        TestNetworkInterface.patcher_iproute.start()
+        TestNetworkInterface.patcher_ndb.start()
         self.network_interface_name = "eth0"
         self.interface_ipv4_address = "1.2.3.4/24"
         self.interface_mtu_size = 1400
@@ -129,6 +132,12 @@ class TestNetworkInterface(unittest.TestCase):
         )
         self.network_interface.network_db = MockNDB()
         self.network_interface.ip_route = MockIPRoute(routes=[])
+        yield
+        request.addfinalizer(self.teardown)
+
+    @staticmethod
+    def teardown() -> None:
+        patch.stopall()
 
     def test_given_interface_has_ipv4_address_when_get_interface_ip_address_ip_is_returned(self):
         self.network_interface.network_db.interfaces = MockInterfaces(
@@ -141,7 +150,7 @@ class TestNetworkInterface(unittest.TestCase):
 
         address = self.network_interface.get_ip_address()
 
-        self.assertEqual(address, self.interface_ipv4_address)
+        assert address == self.interface_ipv4_address
 
     def test_given_interface_doesnt_exist_when_get_interface_ip_address_then_empty_string_is_returned(  # noqa: E501
         self,
@@ -150,7 +159,7 @@ class TestNetworkInterface(unittest.TestCase):
 
         address = self.network_interface.get_ip_address()
 
-        self.assertEqual(address, "")
+        assert address == ""
 
     def test_given_interface_doesnt_have_ipv4_address_when_get_interface_ip_address_then_empty_string_is_returned(  # noqa: E501
         self,
@@ -166,11 +175,9 @@ class TestNetworkInterface(unittest.TestCase):
 
         address = self.network_interface.get_ip_address()
 
-        self.assertEqual(address, "")
+        assert address == ""
 
-    def test_given_interface_has_gateway_ip_address_when_get_gateway_ip_address_then_gateway_ip_is_returned(  # noqa: E501
-        self,
-    ):
+    def test_given_interface_has_gateway_ip_address_when_get_gateway_ip_address_then_gateway_ip_is_returned(self):  # noqa: E501
         gateway_ip = "1.2.3.1"
 
         self.network_interface.ip_route = MockIPRoute(
@@ -186,7 +193,7 @@ class TestNetworkInterface(unittest.TestCase):
 
         address = self.network_interface.get_gateway_ip_address()
 
-        self.assertEqual(address, gateway_ip)
+        assert address == gateway_ip
 
     def test_given_interface_doesnt_exist_when_get_gateway_ip_address_then_empty_string_is_returned(  # noqa: E501
         self,
@@ -195,7 +202,7 @@ class TestNetworkInterface(unittest.TestCase):
 
         address = self.network_interface.get_gateway_ip_address()
 
-        self.assertEqual(address, "")
+        assert address == ""
 
     def test_given_interface_doesnt_have_gateway_ip_address_when_get_gateway_ip_address_then_empty_string_is_returned(  # noqa: E501
         self,
@@ -213,7 +220,7 @@ class TestNetworkInterface(unittest.TestCase):
 
         address = self.network_interface.get_gateway_ip_address()
 
-        self.assertEqual(address, "")
+        assert address == ""
 
     def test_given_interface_exists_when_get_index_then_index_is_returned(self):
         interface_index = 2
@@ -236,14 +243,14 @@ class TestNetworkInterface(unittest.TestCase):
 
         index = self.network_interface.get_index()
 
-        self.assertEqual(index, interface_index)
+        assert index == interface_index
 
     def test_given_interface_doesnt_exist_when_get_index_then_negative_one_is_returned(self):
         self.network_interface.network_db.interfaces = MockInterfaces(interfaces=[])
 
         index = self.network_interface.get_index()
 
-        self.assertEqual(index, -1)
+        assert index == -1
 
     def test_given_interface_exists_when_exists_then_true_is_returned(self):
         self.network_interface.network_db.interfaces = MockInterfaces(
@@ -255,21 +262,21 @@ class TestNetworkInterface(unittest.TestCase):
 
         exists = self.network_interface.exists()
 
-        self.assertTrue(exists)
+        assert exists is True
 
     def test_given_interface_doesnt_exist_when_exists_then_false_is_returned(self):
         self.network_interface.network_db.interfaces = MockInterfaces(interfaces=[])
 
         exists = self.network_interface.exists()
 
-        self.assertFalse(exists)
+        assert exists is False
 
     def test_given_interface_doesnt_exist_when_is_valid_then_false_is_returned(self):
         self.network_interface.network_db.interfaces = MockInterfaces(interfaces=[])
 
         is_valid = self.network_interface.is_valid()
 
-        self.assertFalse(is_valid)
+        assert is_valid is False
 
     def test_given_correct_address_when_addresses_are_set_then_true_is_returned(self):
         self.network_interface.network_db.interfaces = MockInterfaces(
@@ -281,7 +288,7 @@ class TestNetworkInterface(unittest.TestCase):
 
         addresses_are_set = self.network_interface.addresses_are_set()
 
-        self.assertTrue(addresses_are_set)
+        assert addresses_are_set is True
 
     def test_given_incorrect_address_when_addresses_are_set_then_false_is_returned(self):
         self.network_interface.network_db.interfaces = MockInterfaces(
@@ -293,7 +300,7 @@ class TestNetworkInterface(unittest.TestCase):
 
         addresses_are_set = self.network_interface.addresses_are_set()
 
-        self.assertFalse(addresses_are_set)
+        assert addresses_are_set is False
 
     def test_given_correct_mtu_size_when_mtu_size_is_set_then_true_is_returned(self):
         self.network_interface.network_db.interfaces = MockInterfaces(
@@ -305,7 +312,7 @@ class TestNetworkInterface(unittest.TestCase):
 
         mtu_size_is_set = self.network_interface.mtu_size_is_set()
 
-        self.assertTrue(mtu_size_is_set)
+        assert mtu_size_is_set is True
 
     def test_given_incorrect_mtu_size_when_mtu_size_is_set_then_true_is_returned(self):
         self.network_interface.network_db.interfaces = MockInterfaces(
@@ -318,13 +325,12 @@ class TestNetworkInterface(unittest.TestCase):
 
         mtu_size_is_set = self.network_interface.mtu_size_is_set()
 
-        self.assertFalse(mtu_size_is_set)
+        assert mtu_size_is_set is False
 
 
-class TestRoute(unittest.TestCase):
-
-    @patch("pyroute2.IPRoute")
-    def setUp(self, mock_route):
+class TestRoute:
+    @pytest.fixture(autouse=True)
+    def setup(self, request):
         self.gateway_ip = "1.2.3.1"
         self.oif = 2
         self.metric = 110
@@ -339,7 +345,7 @@ class TestRoute(unittest.TestCase):
     def test_given_route_doesnt_exist_when_exists_then_return_false(self):
         exists = self.route.exists()
 
-        self.assertFalse(exists)
+        assert exists is False
 
     def test_given_route_exists_when_exists_then_return_true(self):
         self.route.ip_route = MockIPRoute(
@@ -355,7 +361,7 @@ class TestRoute(unittest.TestCase):
 
         exists = self.route.exists()
 
-        self.assertTrue(exists)
+        assert exists is True
 
     def test_given_route_doesnt_exist_when_create_then_route_is_created(self):
         self.route.create()
@@ -371,25 +377,31 @@ class TestRoute(unittest.TestCase):
     def given_netlink_error_when_create_then_exception_is_raised(self):
         self.route.ip_route.route.side_effect = NetlinkError
 
-        with self.assertRaises(UPFNetworkError):
+        with pytest.raises(UPFNetworkError):
             self.route.create()
 
 
-class TestIPTablesRule(unittest.TestCase):
+class TestIPTablesRule:
+    patcher_chain = patch("iptc.Chain")
+    patcher_table = patch("iptc.Table")
 
-    @patch("iptc.Chain")
-    @patch("iptc.Table")
-    def setUp(self, mock_iptc_table, mock_iptc_chain):
-        self.mock_iptc_chain = mock_iptc_chain
+    @pytest.fixture(autouse=True)
+    def setup(self, request):
+        TestIPTablesRule.patcher_table.start()
+        self.mock_iptc_chain = TestIPTablesRule.patcher_chain.start()
         self.ip_tables_rule = IPTablesRule()
         self.ip_tables_rule.chain = self.mock_iptc_chain
+
+    @staticmethod
+    def teardown() -> None:
+        patch.stopall()
 
     def test_given_rules_does_not_exist_when_exists_then_return_false(self):
         self.mock_iptc_chain.rules = []
 
         exists = self.ip_tables_rule.exists()
 
-        self.assertFalse(exists)
+        assert exists is False
 
     def test_given_rules_exist_when_exists_then_return_true(self):
         mock_match = Mock()
@@ -403,7 +415,7 @@ class TestIPTablesRule(unittest.TestCase):
 
         exists = self.ip_tables_rule.exists()
 
-        self.assertTrue(exists)
+        assert exists is True
 
     def test_given_rules_does_not_exist_when_create_then_rule_is_created(self):
         self.ip_tables_rule.create()
@@ -418,9 +430,13 @@ class TestIPTablesRule(unittest.TestCase):
         self.ip_tables_rule.chain.insert_rule.assert_any_call(expected_rule)
 
 
-class TestUPFNetwork(unittest.TestCase):
+class TestUPFNetwork:
+    patcher_iptables_rule = patch("upf_network.IPTablesRule")
+    patcher_route = patch("upf_network.Route")
+    patcher_network_interface = patch("upf_network.NetworkInterface")
 
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def setup(self, request):
         self.core_interface_name = "eth0"
         self.core_ip = "1.2.3.4/24"
         self.core_gateway_ip = "1.2.3.1"
@@ -430,13 +446,15 @@ class TestUPFNetwork(unittest.TestCase):
         self.access_gateway_ip = "2.3.4.1"
         self.access_interface_mtu_size = 1500
         self.gnb_subnet = "1.2.1.0/24"
+        self.mock_network_interface = TestUPFNetwork.patcher_network_interface.start()
+        self.mock_route = TestUPFNetwork.patcher_route.start()
+        self.mock_iptables_rule = TestUPFNetwork.patcher_iptables_rule.start()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_invalid_access_interface_when_get_invalid_network_interfaces_then_interface_is_returned(  # noqa: E501
-        self, mock_network_interface, _, __
-    ):
+    @staticmethod
+    def teardown() -> None:
+        patch.stopall()
+
+    def test_given_invalid_access_interface_when_get_invalid_network_interfaces_then_interface_is_returned(self):  # noqa: E501
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = False
         mock_access_interface_instance.name = self.access_interface_name
@@ -444,7 +462,7 @@ class TestUPFNetwork(unittest.TestCase):
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
 
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
@@ -462,19 +480,16 @@ class TestUPFNetwork(unittest.TestCase):
         )
         invalid_network_interfaces = upf_network.get_invalid_network_interfaces()
 
-        self.assertEqual(invalid_network_interfaces, [self.access_interface_name])
+        assert invalid_network_interfaces == [self.access_interface_name]
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
     def test_given_valid_interfaces_when_get_invalid_network_interfaces_then_empty_list_is_returned(  # noqa: E501
-        self, mock_network_interface, _, __
+        self
     ):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
@@ -492,19 +507,14 @@ class TestUPFNetwork(unittest.TestCase):
 
         invalid_network_interfaces = upf_network.get_invalid_network_interfaces()
 
-        self.assertEqual(invalid_network_interfaces, [])
+        assert invalid_network_interfaces == []
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_default_route_not_created_when_configure_then_route_is_created(
-        self, mock_network_interface, mock_route, _
-    ):
+    def test_given_default_route_not_created_when_configure_then_route_is_created(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
@@ -522,28 +532,23 @@ class TestUPFNetwork(unittest.TestCase):
 
         upf_network.configure()
 
-        mock_route.assert_any_call(
+        self.mock_route.assert_any_call(
             destination="",
             gateway=self.core_gateway_ip,
             oif=mock_core_interface_instance.get_index(),
             metric=110,
         )
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_default_route_created_when_configure_then_route_is_not_created(
-        self, mock_network_interface, mock_route, _
-    ):
+    def test_given_default_route_created_when_configure_then_route_is_not_created(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_core_interface_instance = MagicMock()
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
         mock_route_instance = MagicMock()
-        mock_route.return_value = mock_route_instance
+        self.mock_route.return_value = mock_route_instance
         mock_route_instance.exists.return_value = True
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
@@ -561,23 +566,18 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_route_instance.create.assert_not_called()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_default_route_not_created_when_clean_then_delete_is_not_called(
-        self, mock_network_interface, mock_route, _
-    ):
+    def test_given_default_route_not_created_when_clean_then_delete_is_not_called(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
         mock_default_route_instance = MagicMock()
         mock_ran_route_instance = MagicMock()
-        mock_route.side_effect = [mock_default_route_instance, mock_ran_route_instance]
+        self.mock_route.side_effect = [mock_default_route_instance, mock_ran_route_instance]
         mock_default_route_instance.exists.return_value = False
         mock_ran_route_instance.exists.return_value = True
         upf_network = UPFNetwork(
@@ -596,23 +596,18 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_default_route_instance.delete.assert_not_called()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_default_route_created_when_clean_then_delete_is_called(
-        self, mock_network_interface, mock_route, _
-    ):
+    def test_given_default_route_created_when_clean_then_delete_is_called(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
         mock_default_route_instance = MagicMock()
         mock_ran_route_instance = MagicMock()
-        mock_route.side_effect = [mock_default_route_instance, mock_ran_route_instance]
+        self.mock_route.side_effect = [mock_default_route_instance, mock_ran_route_instance]
         mock_default_route_instance.exists.return_value = True
         mock_ran_route_instance.exists.return_value = True
         upf_network = UPFNetwork(
@@ -631,17 +626,12 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_default_route_instance.delete.assert_called_once()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_ran_route_not_created_when_configure_then_route_is_created(
-        self, mock_network_interface, mock_route, _
-    ):
+    def test_given_ran_route_not_created_when_configure_then_route_is_created(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
@@ -659,27 +649,22 @@ class TestUPFNetwork(unittest.TestCase):
 
         upf_network.configure()
 
-        mock_route.assert_any_call(
+        self.mock_route.assert_any_call(
             destination=self.gnb_subnet,
             gateway=self.access_gateway_ip,
             oif=mock_access_interface_instance.get_index(),
         )
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_ran_route_created_when_configure_then_route_is_not_created(
-        self, mock_network_interface, mock_route, _
-    ):
+    def test_given_ran_route_created_when_configure_then_route_is_not_created(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_core_interface_instance = MagicMock()
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
         mock_route_instance = MagicMock()
-        mock_route.return_value = mock_route_instance
+        self.mock_route.return_value = mock_route_instance
         mock_route_instance.exists.return_value = True
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
@@ -697,23 +682,18 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_route_instance.create.assert_not_called()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_ran_route_not_created_when_clean_then_delete_is_not_called(
-        self, mock_network_interface, mock_route, _
-    ):
+    def test_given_ran_route_not_created_when_clean_then_delete_is_not_called(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
         mock_default_route_instance = MagicMock()
         mock_ran_route_instance = MagicMock()
-        mock_route.side_effect = [mock_default_route_instance, mock_ran_route_instance]
+        self.mock_route.side_effect = [mock_default_route_instance, mock_ran_route_instance]
         mock_ran_route_instance.exists.return_value = False
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
@@ -731,23 +711,18 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_ran_route_instance.delete.assert_not_called()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_ran_route_created_when_clean_then_delete_is_called(
-        self, mock_network_interface, mock_route, _
-    ):
+    def test_given_ran_route_created_when_clean_then_delete_is_called(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
         mock_default_route_instance = MagicMock()
         mock_ran_route_instance = MagicMock()
-        mock_route.side_effect = [mock_default_route_instance, mock_ran_route_instance]
+        self.mock_route.side_effect = [mock_default_route_instance, mock_ran_route_instance]
         mock_ran_route_instance.exists.return_value = True
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
@@ -765,17 +740,12 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_ran_route_instance.delete.assert_called_once()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_iptables_rule_not_created_when_configure_then_rule_is_created(
-        self, mock_network_interface, _, mock_iptables_rule
-    ):
+    def test_given_iptables_rule_not_created_when_configure_then_rule_is_created(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
@@ -793,23 +763,18 @@ class TestUPFNetwork(unittest.TestCase):
 
         upf_network.configure()
 
-        mock_iptables_rule.assert_called_once()
+        self.mock_iptables_rule.assert_called_once()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_iptables_rule_created_when_configure_then_rule_is_not_created(
-        self, mock_network_interface, _, mock_iptables_rule
-    ):
+    def test_given_iptables_rule_created_when_configure_then_rule_is_not_created(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_core_interface_instance = MagicMock()
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
         mock_iptables_rule_instance = MagicMock()
-        mock_iptables_rule.return_value = mock_iptables_rule_instance
+        self.mock_iptables_rule.return_value = mock_iptables_rule_instance
         mock_iptables_rule_instance.exists.return_value = True
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
@@ -827,22 +792,17 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_iptables_rule_instance.create.assert_not_called()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_iptables_rule_not_created_when_clean_then_delete_is_not_called(
-        self, mock_network_interface, _, mock_iptables_rule
-    ):
+    def test_given_iptables_rule_not_created_when_clean_then_delete_is_not_called(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
         mock_iptables_rule_instance = MagicMock()
-        mock_iptables_rule.return_value = mock_iptables_rule_instance
+        self.mock_iptables_rule.return_value = mock_iptables_rule_instance
         mock_iptables_rule_instance.exists.return_value = False
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
@@ -860,22 +820,17 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_iptables_rule_instance.delete.assert_not_called()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_iptables_rule_created_when_clean_then_delete_is_called(
-        self, mock_network_interface, _, mock_iptables_rule
-    ):
+    def test_given_iptables_rule_created_when_clean_then_delete_is_called(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
         mock_iptables_rule_instance = MagicMock()
-        mock_iptables_rule.return_value = mock_iptables_rule_instance
+        self.mock_iptables_rule.return_value = mock_iptables_rule_instance
         mock_iptables_rule_instance.exists.return_value = True
         upf_network = UPFNetwork(
             access_interface_name=self.access_interface_name,
@@ -893,19 +848,14 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_iptables_rule_instance.delete.assert_called_once()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_access_address_not_set_when_configure_then_address_is_set(
-        self, mock_network_interface, _, __,
-    ):
+    def test_given_access_address_not_set_when_configure_then_address_is_set(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_access_interface_instance.addresses_are_set.return_value = False
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
         mock_core_interface_instance.addresses_are_set.return_value = True
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
@@ -925,19 +875,14 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_access_interface_instance.set_ip_address.assert_called_once()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_core_address_not_set_when_configure_then_address_is_set(
-        self, mock_network_interface, _, __,
-    ):
+    def test_given_core_address_not_set_when_configure_then_address_is_set(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_access_interface_instance.addresses_are_set.return_value = True
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
         mock_core_interface_instance.addresses_are_set.return_value = False
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
@@ -957,19 +902,14 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_core_interface_instance.set_ip_address.assert_called_once()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_access_address_set_when_configure_then_set_address_is_not_called(
-        self, mock_network_interface, _, __,
-    ):
+    def test_given_access_address_set_when_configure_then_set_address_is_not_called(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_access_interface_instance.addresses_are_set.return_value = True
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
         mock_core_interface_instance.addresses_are_set.return_value = True
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
@@ -989,19 +929,14 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_access_interface_instance.set_ip_address.assert_not_called()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_core_address_set_when_configure_then_set_address_is_not_called(
-        self, mock_network_interface, _, __,
-    ):
+    def test_given_core_address_set_when_configure_then_set_address_is_not_called(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_access_interface_instance.addresses_are_set.return_value = True
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
         mock_core_interface_instance.addresses_are_set.return_value = True
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
@@ -1021,19 +956,14 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_core_interface_instance.set_ip_address.assert_not_called()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_access_address_set_when_clean_then_unset_address_is_called(
-        self, mock_network_interface, _, __,
-    ):
+    def test_given_access_address_set_when_clean_then_unset_address_is_called(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_access_interface_instance.get_ip_address.return_value = self.access_ip
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
         mock_core_interface_instance.get_ip_address.return_value = ""
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
@@ -1053,19 +983,14 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_access_interface_instance.unset_ip_address.assert_called_once()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_core_address_set_when_clean_then_unset_address_is_called(
-        self, mock_network_interface, _, __,
-    ):
+    def test_given_core_address_set_when_clean_then_unset_address_is_called(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_access_interface_instance.get_ip_address.return_value = ""
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
         mock_core_interface_instance.get_ip_address.return_value = self.core_ip
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
@@ -1085,19 +1010,14 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_core_interface_instance.unset_ip_address.assert_called_once()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_access_address_not_set_when_clean_then_unset_address_is_not_called(
-        self, mock_network_interface, _, __,
-    ):
+    def test_given_access_address_not_set_when_clean_then_unset_address_is_not_called(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_access_interface_instance.get_ip_address.return_value = ""
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
         mock_core_interface_instance.get_ip_address.return_value = self.core_ip
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
@@ -1117,19 +1037,14 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_access_interface_instance.unset_ip_address.assert_not_called()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_core_address_not_set_when_clean_then_unset_address_is_not_called(
-        self, mock_network_interface, _, __,
-    ):
+    def test_given_core_address_not_set_when_clean_then_unset_address_is_not_called(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_access_interface_instance.get_ip_address.return_value = self.access_ip
         mock_core_interface_instance = MagicMock()
         mock_core_interface_instance.is_valid.return_value = True
         mock_core_interface_instance.get_ip_address.return_value = ""
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
@@ -1149,12 +1064,7 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_core_interface_instance.unset_ip_address.assert_not_called()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_access_mtu_not_set_when_configure_then_mtu_is_set(
-        self, mock_network_interface, _, __,
-    ):
+    def test_given_access_mtu_not_set_when_configure_then_mtu_is_set(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_access_interface_instance.addresses_are_set.return_value = True
@@ -1163,7 +1073,7 @@ class TestUPFNetwork(unittest.TestCase):
         mock_core_interface_instance.is_valid.return_value = True
         mock_core_interface_instance.addresses_are_set.return_value = True
         mock_core_interface_instance.mtu_size_is_set.return_value = True
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
@@ -1183,12 +1093,7 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_access_interface_instance.set_mtu_size.assert_called_once()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_core_mtu_not_set_when_configure_then_mtu_is_set(
-        self, mock_network_interface, _, __,
-    ):
+    def test_given_core_mtu_not_set_when_configure_then_mtu_is_set(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_access_interface_instance.addresses_are_set.return_value = True
@@ -1197,7 +1102,7 @@ class TestUPFNetwork(unittest.TestCase):
         mock_core_interface_instance.is_valid.return_value = True
         mock_core_interface_instance.addresses_are_set.return_value = True
         mock_core_interface_instance.mtu_size_is_set.return_value = False
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
@@ -1217,12 +1122,7 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_core_interface_instance.set_mtu_size.assert_called_once()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_access_mtu_set_when_configure_then_set_mtu_size_is_not_called(
-        self, mock_network_interface, _, __,
-    ):
+    def test_given_access_mtu_set_when_configure_then_set_mtu_size_is_not_called(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_access_interface_instance.addresses_are_set.return_value = True
@@ -1231,7 +1131,7 @@ class TestUPFNetwork(unittest.TestCase):
         mock_core_interface_instance.is_valid.return_value = True
         mock_core_interface_instance.addresses_are_set.return_value = True
         mock_core_interface_instance.mtu_size_is_set.return_value = True
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
@@ -1251,12 +1151,7 @@ class TestUPFNetwork(unittest.TestCase):
 
         mock_access_interface_instance.set_mtu_size.assert_not_called()
 
-    @patch("upf_network.IPTablesRule")
-    @patch("upf_network.Route")
-    @patch("upf_network.NetworkInterface")
-    def test_given_core_mtu_set_when_configure_then_set_mtu_size_is_not_called(
-        self, mock_network_interface, _, __,
-    ):
+    def test_given_core_mtu_set_when_configure_then_set_mtu_size_is_not_called(self):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_access_interface_instance.addresses_are_set.return_value = True
@@ -1265,7 +1160,7 @@ class TestUPFNetwork(unittest.TestCase):
         mock_core_interface_instance.is_valid.return_value = True
         mock_core_interface_instance.addresses_are_set.return_value = True
         mock_core_interface_instance.mtu_size_is_set.return_value = True
-        mock_network_interface.side_effect = [
+        self.mock_network_interface.side_effect = [
             mock_access_interface_instance,
             mock_core_interface_instance,
         ]
