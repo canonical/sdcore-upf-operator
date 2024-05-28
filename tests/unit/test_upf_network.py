@@ -152,18 +152,14 @@ class TestNetworkInterface:
 
         assert address == self.interface_ipv4_address
 
-    def test_given_interface_doesnt_exist_when_get_interface_ip_address_then_empty_string_is_returned(  # noqa: E501
-        self,
-    ):
+    def test_given_interface_doesnt_exist_when_get_interface_ip_address_then_empty_string_is_returned(self):  # noqa: E501
         self.network_interface.network_db.interfaces = MockInterfaces(interfaces=[])
 
         address = self.network_interface.get_ip_address()
 
         assert address == ""
 
-    def test_given_interface_doesnt_have_ipv4_address_when_get_interface_ip_address_then_empty_string_is_returned(  # noqa: E501
-        self,
-    ):
+    def test_given_interface_doesnt_have_ipv4_address_when_get_interface_ip_address_then_empty_string_is_returned(self):  # noqa: E501
         self.network_interface.network_db.interfaces = MockInterfaces(
             interfaces=[
                 MockInterface(
@@ -195,18 +191,14 @@ class TestNetworkInterface:
 
         assert address == gateway_ip
 
-    def test_given_interface_doesnt_exist_when_get_gateway_ip_address_then_empty_string_is_returned(  # noqa: E501
-        self,
-    ):
+    def test_given_interface_doesnt_exist_when_get_gateway_ip_address_then_empty_string_is_returned(self):  # noqa: E501
         self.network_interface.ip_route = MockIPRoute(routes=[])
 
         address = self.network_interface.get_gateway_ip_address()
 
         assert address == ""
 
-    def test_given_interface_doesnt_have_gateway_ip_address_when_get_gateway_ip_address_then_empty_string_is_returned(  # noqa: E501
-        self,
-    ):
+    def test_given_interface_doesnt_have_gateway_ip_address_when_get_gateway_ip_address_then_empty_string_is_returned(self):  # noqa: E501
         self.network_interface.ip_route = MockIPRoute(
             routes=[
                 MockRoute(
@@ -330,7 +322,7 @@ class TestNetworkInterface:
 
 class TestRoute:
     @pytest.fixture(autouse=True)
-    def setup(self, request):
+    def setup(self):
         self.gateway_ip = "1.2.3.1"
         self.oif = 2
         self.metric = 110
@@ -391,6 +383,7 @@ class TestIPTablesRule:
         self.mock_iptc_chain = TestIPTablesRule.patcher_chain.start()
         self.ip_tables_rule = IPTablesRule()
         self.ip_tables_rule.chain = self.mock_iptc_chain
+        request.addfinalizer(self.teardown)
 
     @staticmethod
     def teardown() -> None:
@@ -449,6 +442,8 @@ class TestUPFNetwork:
         self.mock_network_interface = TestUPFNetwork.patcher_network_interface.start()
         self.mock_route = TestUPFNetwork.patcher_route.start()
         self.mock_iptables_rule = TestUPFNetwork.patcher_iptables_rule.start()
+        yield
+        request.addfinalizer(self.teardown)
 
     @staticmethod
     def teardown() -> None:
@@ -482,9 +477,7 @@ class TestUPFNetwork:
 
         assert invalid_network_interfaces == [self.access_interface_name]
 
-    def test_given_valid_interfaces_when_get_invalid_network_interfaces_then_empty_list_is_returned(  # noqa: E501
-        self
-    ):
+    def test_given_valid_interfaces_when_get_invalid_network_interfaces_then_empty_list_is_returned(self):  # noqa: E501
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_core_interface_instance = MagicMock()

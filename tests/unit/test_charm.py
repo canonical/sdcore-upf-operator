@@ -16,7 +16,7 @@ TEST_PFCP_PORT = 1234
 
 
 def read_file(path: str) -> str:
-    """Read a file and returns as a string."""
+    """Read a file and return as a string."""
     with open(path, "r") as f:
         content = f.read()
     return content
@@ -64,12 +64,11 @@ class TestCharm:
 
         self.harness.evaluate_status()
 
-        assert self.harness.model.unit.status == ops.BlockedStatus("Scaling is not implemented for this charm")  # noqa: E501
+        assert self.harness.model.unit.status == ops.BlockedStatus(
+            "Scaling is not implemented for this charm"
+        )
 
-    def test_given_upf_snap_uninstalled_when_configure_then_upf_snap_installed(
-        self
-    ):
-        self.harness.set_leader(is_leader=True)
+    def test_given_upf_snap_uninstalled_when_configure_then_upf_snap_installed(self):
         upf_snap = MagicMock()
         snap_cache = {"sdcore-upf": upf_snap}
         self.mock_snap_cache.return_value = snap_cache
@@ -85,7 +84,6 @@ class TestCharm:
         upf_snap.hold.assert_called()
 
     def test_given_upf_service_not_started_when_config_changed_then_service_started(self):
-        self.harness.set_leader(True)
         upf_snap = MagicMock()
         upf_snap.services = {
             "bessd": {"active": False},
@@ -106,7 +104,6 @@ class TestCharm:
         )
 
     def test_given_upf_snap_uninstalled_when_remove_then_services_not_stopped(self):
-        self.harness.set_leader(True)
         upf_snap = MagicMock()
         upf_snap.services = {}
         snap_cache = {"sdcore-upf": upf_snap}
@@ -117,7 +114,6 @@ class TestCharm:
         upf_snap.stop.assert_not_called()
 
     def test_given_upf_services_started_when_remove_then_services_stopped(self):
-        self.harness.set_leader(True)
         upf_snap = MagicMock()
         upf_snap.services = {
             "bessd": {"active": True},
@@ -138,7 +134,6 @@ class TestCharm:
         )
 
     def test_given_bessd_not_configured_when_config_changed_then_bessctl_run_called(self):
-        self.harness.set_leader(True)
         upf_snap = MagicMock()
         snap_cache = {"sdcore-upf": upf_snap}
         self.mock_snap_cache.return_value = snap_cache
@@ -164,7 +159,6 @@ class TestCharm:
         mock_time = patch("charm.time.time").start()
         mock_time.side_effect = count(start=1, step=60)
         mock_sleep.return_value = None
-        self.harness.set_leader(True)
         upf_snap = MagicMock()
         self.mock_process.wait_output.side_effect = [
             ("Flags: avx2 rdrand", ""),
@@ -178,7 +172,6 @@ class TestCharm:
             self.harness.update_config()
 
     def test_given_unit_is_leader_when_config_changed_then_status_is_active(self):
-        self.harness.set_leader(True)
         upf_snap = MagicMock()
         snap_cache = {"sdcore-upf": upf_snap}
         self.mock_snap_cache.return_value = snap_cache
@@ -188,7 +181,6 @@ class TestCharm:
         assert self.harness.model.unit.status == ops.ActiveStatus()
 
     def test_given_config_file_not_written_when_config_changed_then_config_file_is_written(self):
-        self.harness.set_leader(True)
         self.mock_machine.exists.return_value = False
 
         self.harness.update_config()
@@ -200,7 +192,6 @@ class TestCharm:
         assert json.loads(kwargs["source"]) == json.loads(expected_config_file_content)
 
     def test_given_config_file_written_with_different_content_when_config_changed_then_new_config_file_is_written(self):  # noqa: E501
-        self.harness.set_leader(True)
         self.mock_machine.exists_return_value = True
         self.mock_machine.pull_return_value = "initial content"
 
@@ -212,7 +203,6 @@ class TestCharm:
         assert json.loads(kwargs["source"]) == json.loads(expected_config_file_content)
 
     def test_given_config_file_written_with_identical_content_when_config_changed_then_new_config_file_not_written(self):  # noqa: E501
-        self.harness.set_leader(True)
         self.mock_machine.exists.return_value = True
         self.mock_machine.pull.return_value = read_file("tests/unit/expected_upf.json").strip()
 
@@ -221,12 +211,13 @@ class TestCharm:
         self.mock_machine.push.assert_not_called()
 
     def test_given_invalid_gnbsubnet_config_when_config_changed_then_status_is_blocked(self):
-        self.harness.set_leader(True)
         self.harness.update_config({"gnb-subnet": "not an ip address"})
 
         self.harness.evaluate_status()
 
-        assert self.harness.model.unit.status == ops.BlockedStatus("The following configurations are not valid: ['gnb-subnet']")  # noqa: E501
+        assert self.harness.model.unit.status == ops.BlockedStatus(
+            "The following configurations are not valid: ['gnb-subnet']"
+        )
 
     def test_given_network_interfaces_not_valid_when_config_changed_then_status_is_blocked(self):
         self.mock_upf_network.get_invalid_network_interfaces.return_value = [
@@ -235,15 +226,14 @@ class TestCharm:
         ]
         self.mock_upf_network.return_value = self.mock_upf_network
 
-        self.harness.set_leader(True)
-
         self.harness.evaluate_status()
 
-        assert self.harness.model.unit.status == ops.BlockedStatus("Network interfaces are not valid: ['eth0', 'eth1']")  # noqa: E501
+        assert self.harness.model.unit.status == ops.BlockedStatus(
+            "Network interfaces are not valid: ['eth0', 'eth1']"
+        )
 
     def test_given_network_interfaces_valid_when_config_changed_then_routes_are_created(self):
         gnb_subnet = "192.168.251.0/24"
-        self.harness.set_leader(True)
 
         self.harness.update_config(
             {
@@ -264,7 +254,9 @@ class TestCharm:
             key_values={"external-upf-hostname": test_external_upf_hostname}
         )
 
-        n4_relation_id = self.harness.add_relation("fiveg_n4", "n4_requirer_app")  # noqa: E501
+        n4_relation_id = self.harness.add_relation(
+            "fiveg_n4", "n4_requirer_app"
+        )
         self.harness.add_relation_unit(n4_relation_id, "n4_requirer_app/0")
 
         mock_publish_upf_n4_information.assert_not_called()
@@ -274,13 +266,14 @@ class TestCharm:
         upf_snap = MagicMock()
         snap_cache = {"sdcore-upf": upf_snap}
         self.mock_snap_cache.return_value = snap_cache
-        self.harness.set_leader(True)
         test_external_upf_hostname = "test-upf.external.hostname.com"
         self.harness.update_config(
             key_values={"external-upf-hostname": test_external_upf_hostname}
         )
 
-        n4_relation_id = self.harness.add_relation("fiveg_n4", "n4_requirer_app")  # noqa: E501
+        n4_relation_id = self.harness.add_relation(
+            "fiveg_n4", "n4_requirer_app"
+        )
         self.harness.add_relation_unit(n4_relation_id, "n4_requirer_app/0")
 
         mock_publish_upf_n4_information.assert_called_once_with(
@@ -294,8 +287,9 @@ class TestCharm:
         upf_snap = MagicMock()
         snap_cache = {"sdcore-upf": upf_snap}
         self.mock_snap_cache.return_value = snap_cache
-        self.harness.set_leader(True)
-        n4_relation_id = self.harness.add_relation("fiveg_n4", "n4_requirer_app")  # noqa: E501
+        n4_relation_id = self.harness.add_relation(
+            "fiveg_n4", "n4_requirer_app"
+        )
         self.harness.add_relation_unit(n4_relation_id, "n4_requirer_app/0")
 
         mock_publish_upf_n4_information.assert_called_once_with(
@@ -310,10 +304,11 @@ class TestCharm:
         snap_cache = {"sdcore-upf": upf_snap}
         self.mock_snap_cache.return_value = snap_cache
 
-        self.harness.set_leader(True)
         test_external_upf_hostname = "test-upf.external.hostname.com"
         self.harness.update_config(key_values={"external-upf-hostname": "whatever.com"})
-        n4_relation_id = self.harness.add_relation("fiveg_n4", "n4_requirer_app")  # noqa: E501
+        n4_relation_id = self.harness.add_relation(
+            "fiveg_n4", "n4_requirer_app"
+        )
         self.harness.add_relation_unit(n4_relation_id, "n4_requirer_app/0")
         expected_calls = [
             call(
@@ -335,7 +330,6 @@ class TestCharm:
         mock_publish_upf_n4_information.assert_has_calls(expected_calls)
 
     def test_given_upf_installed_when_remove_then_snap_removed(self):
-        self.harness.set_leader(True)
         upf_snap = MagicMock()
         snap_cache = {"sdcore-upf": upf_snap}
         self.mock_snap_cache.return_value = snap_cache
@@ -353,15 +347,15 @@ class TestCharm:
 
     def test_given_cpu_not_compatible_when_install_then_status_is_blocked(self):
         self.mock_process.wait_output.return_value = ("Flags: ssse3 fma cx16 rdrand", "")
-        self.harness.set_leader(True)
         self.harness.charm.on.install.emit()
 
         self.harness.evaluate_status()
 
-        assert self.harness.model.unit.status == ops.BlockedStatus("CPU is not compatible, see logs for more details")  # noqa: E501
+        assert self.harness.model.unit.status == ops.BlockedStatus(
+            "CPU is not compatible, see logs for more details"
+        )
 
     def test_given_cpu_compatible_when_install_then_status_is_active(self):
-        self.harness.set_leader(True)
         self.harness.charm.on.install.emit()
 
         self.harness.evaluate_status()
