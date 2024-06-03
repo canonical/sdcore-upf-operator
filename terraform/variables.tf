@@ -20,7 +20,7 @@ variable "channel" {
 }
 
 variable "config" {
-  description = "Application config. Details about available options can be found at https://charmhub.io/sdcore-upf-k8s-operator/configure."
+  description = "Application config. Details about available options can be found at https://charmhub.io/sdcore-upf/configure."
   type        = map(string)
   default     = {}
 }
