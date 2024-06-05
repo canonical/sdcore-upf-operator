@@ -25,7 +25,7 @@ depending on the deployment architecture.
 
 - A host with a CPU supporting AVX2 and RDRAND instructions (Intel Haswell, AMD Excavator or equivalent)
 - Juju controller bootstrapped to a LXD cluster
-- A Juju machine representing the host manually added to the controller
+- A Juju machine representing the host that has been added to a model
 - Terraform
 
 ### Deploying UPF with Terraform
