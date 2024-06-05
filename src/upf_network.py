@@ -14,10 +14,6 @@ from pyroute2 import NDB, IPRoute, NetlinkError
 logger = logging.getLogger(__name__)
 
 
-class UPFNetworkError(Exception):
-    """Custom exception for UPFNetwork."""
-
-
 class NetworkInterface:
     """A class to interact with a network interface."""
 
@@ -184,11 +180,13 @@ class Route:
                 oif=self.oif,
                 priority=self.metric,
             )
+            logger.info(
+                "Route to %s via %s created/updated successfully",
+                self.destination,
+                self.gateway,
+            )
         except NetlinkError as e:
-            UPFNetworkError(f"Failed to create or replace the route: {e}")
-        logger.info(
-            "Route to %s via %s created/updated successfully", self.destination, self.gateway
-        )
+            logger.error("Failed to create or replace the route: %s", e.args)
 
     def delete(self) -> None:
         """Delete the route."""
@@ -200,11 +198,11 @@ class Route:
                 oif=self.oif,
                 priority=self.metric,
             )
+            logger.info(
+                "Route to %s via %s deleted successfully", self.destination, self.gateway
+            )
         except NetlinkError as e:
-            UPFNetworkError(f"Failed to delete the route: {e}")
-        logger.info(
-            "Route to %s via %s deleted successfully", self.destination, self.gateway
-        )
+            logger.error("Failed to create or replace the route: %s", e)
 
 
 class IPTablesRule:
