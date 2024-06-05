@@ -10,6 +10,5 @@ resource "juju_application" "upf" {
     channel = var.channel
   }
   config = var.config
-  trust  = true
   placement = var.machine_number
 }
