@@ -120,7 +120,7 @@ pyrfc3339==1.1
     #   macaroonbakery
 pyright==1.1.365
     # via -r test-requirements.in
-pytest==8.2.1
+pytest==8.2.2
     # via
     #   -r test-requirements.in
     #   pytest-asyncio
