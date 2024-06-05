@@ -232,6 +232,18 @@ class TestCharm:
             "Network interfaces are not valid: ['eth0', 'eth1']"
         )
 
+    def test_given_network_not_configured_when_config_changed_then_snap_is_not_installed(self):
+        self.mock_upf_network.is_configured.return_value = False
+        upf_snap = MagicMock()
+        snap_cache = {"sdcore-upf": upf_snap}
+        self.mock_snap_cache.return_value = snap_cache
+
+        self.harness.charm.on.install.emit()
+
+        self.harness.evaluate_status()
+
+        upf_snap.ensure.assert_not_called()
+
     def test_given_network_interfaces_valid_when_config_changed_then_routes_are_created(self):
         gnb_subnet = "192.168.251.0/24"
 

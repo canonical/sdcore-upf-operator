@@ -124,6 +124,9 @@ class SdcoreUpfCharm(ops.CharmBase):
             return
 
         self._network.configure()
+        if not self._network.is_configured():
+            return
+
         self._install_upf_snap()
         self._generate_upf_config_file()
         self._start_bessd_service()

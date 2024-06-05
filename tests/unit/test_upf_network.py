@@ -7,8 +7,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import iptc
 import pytest
-from pyroute2 import NetlinkError
-from upf_network import IPTablesRule, NetworkInterface, Route, UPFNetwork, UPFNetworkError
+from upf_network import IPTablesRule, NetworkInterface, Route, UPFNetwork
 
 
 class MockIPAddr:
@@ -365,12 +364,6 @@ class TestRoute:
             oif=self.oif,
             priority=self.metric,
         )
-
-    def given_netlink_error_when_create_then_exception_is_raised(self):
-        self.route.ip_route.route.side_effect = NetlinkError
-
-        with pytest.raises(UPFNetworkError):
-            self.route.create()
 
 
 class TestIPTablesRule:
