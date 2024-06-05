@@ -1,6 +1,6 @@
 # SD-Core UPF Terraform Module
 
-This folder contains a base [Terraform][Terraform] module for the sdcore-gnbsim charm.
+This folder contains a base [Terraform][Terraform] module for the sdcore-upf machine charm.
 
 The module uses the [Terraform Juju provider][Terraform Juju provider] to model the charm
 deployment onto any machine managed by [Juju][Juju].
