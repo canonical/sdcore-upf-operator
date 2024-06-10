@@ -3,16 +3,24 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
     commit-message:
       prefix: "chore: "
+    groups:
+      github_actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
     commit-message:
       prefix: "chore: "
+    groups:
+      pip_dependencies:
+        patterns:
+          - "*"
     ignore:
       - dependency-name: "pydantic"
         update-types: ["version-update:semver-major"]
