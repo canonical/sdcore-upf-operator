@@ -8,6 +8,7 @@ resource "juju_application" "upf" {
   charm {
     name    = "sdcore-upf"
     channel = var.channel
+    base = "ubuntu@22.04"
   }
   config = var.config
   placement = var.machine_number
