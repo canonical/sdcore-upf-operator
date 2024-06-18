@@ -103,7 +103,7 @@ pyasn1-modules==0.3.0
     # via google-auth
 pycparser==2.21
     # via cffi
-pydantic==1.10.15
+pydantic==1.10.16
     # via pytest-interface-tester
 pygments==2.17.2
     # via ipython
@@ -118,7 +118,7 @@ pyrfc3339==1.1
     # via
     #   juju
     #   macaroonbakery
-pyright==1.1.366
+pyright==1.1.367
     # via -r test-requirements.in
 pytest==8.2.2
     # via
@@ -155,7 +155,7 @@ requests-oauthlib==1.4.0
     # via kubernetes
 rsa==4.9
     # via google-auth
-ruff==0.4.8
+ruff==0.4.9
     # via -r test-requirements.in
 six==1.16.0
     # via
