@@ -24,7 +24,7 @@ click==8.1.7
     # via typer
 codespell==2.3.0
     # via -r test-requirements.in
-coverage[toml]==7.5.3
+coverage[toml]==7.5.4
     # via -r test-requirements.in
 cryptography==42.0.5
     # via paramiko
@@ -103,7 +103,7 @@ pyasn1-modules==0.3.0
     # via google-auth
 pycparser==2.21
     # via cffi
-pydantic==1.10.16
+pydantic==1.10.17
     # via pytest-interface-tester
 pygments==2.17.2
     # via ipython
@@ -118,7 +118,7 @@ pyrfc3339==1.1
     # via
     #   juju
     #   macaroonbakery
-pyright==1.1.367
+pyright==1.1.368
     # via -r test-requirements.in
 pytest==8.2.2
     # via
@@ -155,7 +155,7 @@ requests-oauthlib==1.4.0
     # via kubernetes
 rsa==4.9
     # via google-auth
-ruff==0.4.9
+ruff==0.4.10
     # via -r test-requirements.in
 six==1.16.0
     # via
