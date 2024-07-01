@@ -70,7 +70,7 @@ oauthlib==3.2.2
     # via
     #   kubernetes
     #   requests-oauthlib
-ops==2.14.0
+ops==2.14.1
     # via ops-scenario
 ops-scenario==6.0.2
     # via pytest-interface-tester
@@ -118,7 +118,7 @@ pyrfc3339==1.1
     # via
     #   juju
     #   macaroonbakery
-pyright==1.1.368
+pyright==1.1.369
     # via -r test-requirements.in
 pytest==8.2.2
     # via
@@ -155,7 +155,7 @@ requests-oauthlib==1.4.0
     # via kubernetes
 rsa==4.9
     # via google-auth
-ruff==0.4.10
+ruff==0.5.0
     # via -r test-requirements.in
 six==1.16.0
     # via
