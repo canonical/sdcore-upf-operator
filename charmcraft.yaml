@@ -29,6 +29,11 @@ provides:
 
 config:
   options:
+    upf-mode:
+      type: string
+      default: af_packet
+      description: |
+        Either `af_packet` (default) or `dpdk`.
     dnn:
       type: string
       default: internet
@@ -37,7 +42,7 @@ config:
       type: boolean
       default: true
       description: |
-        When enabled, hardware checksum will be used on the network interfaces.
+        When enabled, hardware checksum offloading will be used on the network interfaces.
     gnb-subnet:
       type: string
       default: 192.168.251.0/24
@@ -45,7 +50,7 @@ config:
     access-interface-name:
       type: string
       default: eth0
-      description: Name of the UPF's access interface.
+      description: Name of the UPF's Access interface.
     access-ip:
       type: string
       default: 192.168.252.3/24
@@ -59,10 +64,20 @@ config:
       default: 1500
       description: |
         MTU for the access interface (1200 <= MTU <= 65535) in bytes.
+    access-interface-mac-address:
+      type: string
+      description: |
+        MAC address of the UPF's Access interface. 
+        Required only if `upf-mode` is `dpdk`.
+    access-interface-pci-address:
+      type: string
+      description: |
+        PCI address of the UPF's Access interface in extended BDF notation (e.g. 0000:00:01.0).
+        Required only if `upf-mode` is `dpdk`.
     core-interface-name:
       type: string
       default: eth1
-      description: Name of the UPF's core interface.
+      description: Name of the UPF's Core interface.
     core-ip:
       type: string
       default: 192.168.250.3/24
@@ -76,6 +91,16 @@ config:
       default: 1500
       description: |
         MTU for the core interface (1200 <= MTU <= 65535) in bytes.
+    core-interface-mac-address:
+      type: string
+      description: |
+        MAC address of the UPF's Core interface. 
+        Required only if `upf-mode` is `dpdk`.
+    core-interface-pci-address:
+      type: string
+      description: |
+        PCI address of the UPF's Core interface in extended BDF notation (e.g. 0000:00:01.0).
+        Required only if `upf-mode` is `dpdk`.
     external-upf-hostname:
       type: string
       description: |

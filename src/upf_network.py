@@ -17,12 +17,21 @@ logger = logging.getLogger(__name__)
 class NetworkInterface:
     """A class to interact with a network interface."""
 
-    def __init__(self, name: str, ip_address: str, mtu_size: int = 1500):
+    def __init__(
+        self,
+        name: str,
+        ip_address: str,
+        mac_address: Optional[str] = None,
+        alias: Optional[str] = None,
+        mtu_size: int = 1500,
+    ):
         self.network_db = NDB()
         self.ip_route = IPRoute()
         self.name = name
         self.ip_address = ip_address
+        self.mac_address = mac_address
         self.mtu_size = mtu_size
+        self.alias = alias
 
     def exists(self) -> bool:
         """Return whether the network interface exists."""
@@ -84,7 +93,10 @@ class NetworkInterface:
             if not self.get_ip_address():
                 logger.info("Adding IP %s to interface %s", self.ip_address, self.name)
                 iface_record.add_ip(self.ip_address).commit()
-        logger.warning("Interface %s not found in the network database", self.name)
+        logger.warning(
+            "Setting IP for interface %s failed: Interface not found in the network database",
+            self.name,
+        )
 
     def unset_ip_address(self) -> None:
         """Remove the configured IP address from the given network interface."""
@@ -93,7 +105,40 @@ class NetworkInterface:
             logger.info("Removing IP %s from interface %s", self.ip_address, self.name)
             iface_record.del_ip(self.ip_address).commit()
             return
-        logger.warning("Interface %s not found in the network database", self.name)
+        logger.warning(
+            "Unsetting IP for interface %s failed: Interface not found in the network database",
+            self.name,
+        )
+
+    def create(self) -> None:
+        """Create given network interface.
+
+        In DPDK mode the actual network interfaces of the host are removed from the management
+        of the kernel. To be able to handle ICMP and ARP requests UPF uses virtual interfaces.
+        This method creates a virtual interface with the MAC address matching the corresponding
+        physical interface and tags it with the PCI address of the physical interface.
+        """
+        peer_interface_name = f"{self.name}-vdev"
+        (self.network_db.interfaces.create(  # type: ignore[reportAttributeAccessIssue]
+            ifname=self.name,
+            kind="veth",
+            peer={"ifname": peer_interface_name},
+        ).set(
+            state="up",
+            address=self.mac_address,
+            mtu=self.mtu_size,
+        ).add_ip(address=self.ip_address, prefixlen=24).commit())
+        self.network_db.reload()
+        self.network_db.interfaces[self.name].set(ifalias=self.alias).commit()  # type: ignore[reportAttributeAccessIssue]  # noqa: E501
+        self.network_db.interfaces[peer_interface_name].set(state="up").commit()  # type: ignore[reportAttributeAccessIssue]  # noqa: E501
+
+        logger.info(
+            "Network interface %s created with IP %s, MAC %s and alias %s",
+            self.name,
+            self.ip_address,
+            self.mac_address,
+            self.alias,
+        )
 
     def mtu_size_is_set(self) -> bool:
         """Check if MTU size of the given network interface is already configured ."""
@@ -110,7 +155,10 @@ class NetworkInterface:
             logger.info("Setting MTU size to %s for interface %s", self.mtu_size, self.name)
             iface_record.set("mtu", self.mtu_size).commit()
             return
-        logger.warning("Interface %s not found in the network database", self.name)
+        logger.warning(
+            "Setting MTU size for interface %s failed: Interface not found in the network database",  # noqa: E501
+            self.name,
+        )
 
     def get_gateway_ip_address(self) -> str:
         """Get the gateway IPv4 address of the given network interface."""
@@ -126,11 +174,11 @@ class NetworkInterface:
 
     def get_index(self) -> int:
         """Get the index of the network interface."""
-        iface_index = self.ip_route.link_lookup(ifname=self.name)
-        if not iface_index:
+        try:
+            return self.network_db.interfaces[self.name].get("index")  # type: ignore[reportAttributeAccessIssue]  # noqa: E501
+        except KeyError:
             logger.warning("Interface %s not found", self.name)
             return -1
-        return iface_index[0]
 
 
 class Route:
@@ -250,6 +298,7 @@ class UPFNetwork:
 
     def __init__(
         self,
+        upf_mode: str,
         access_interface_name: str,
         access_ip: str,
         access_gateway_ip: str,
@@ -259,13 +308,38 @@ class UPFNetwork:
         core_gateway_ip: str,
         core_mtu_size: int,
         gnb_subnet: str,
+        access_mac_address: Optional[str] = None,
+        access_pci_address: Optional[str] = None,
+        core_mac_address: Optional[str] = None,
+        core_pci_address: Optional[str] = None,
     ):
         if not access_interface_name:
             raise ValueError("Access network interface name is empty")
         if not core_interface_name:
             raise ValueError("Core network interface name is empty")
-        self.access_interface = NetworkInterface(access_interface_name, access_ip, access_mtu_size)
-        self.core_interface = NetworkInterface(core_interface_name, core_ip, core_mtu_size)
+        if upf_mode == "dpdk":
+            if not access_mac_address:
+                raise ValueError("Access network interface MAC address is empty")
+            if not access_pci_address:
+                raise ValueError("Access network interface PCI address is empty")
+            if not core_mac_address:
+                raise ValueError("Core network interface MAC address is empty")
+            if not core_pci_address:
+                raise ValueError("Core network interface PCI address is empty")
+        self.access_interface = NetworkInterface(
+            name=access_interface_name,
+            ip_address=access_ip,
+            mtu_size=access_mtu_size,
+            mac_address=access_mac_address,
+            alias=access_pci_address,
+        )
+        self.core_interface = NetworkInterface(
+            name=core_interface_name,
+            ip_address=core_ip,
+            mtu_size=core_mtu_size,
+            mac_address=core_mac_address,
+            alias=core_pci_address,
+        )
         self.default_route = Route(
             destination="",
             gateway=core_gateway_ip,
@@ -313,8 +387,8 @@ class UPFNetwork:
     def is_configured(self) -> bool:
         """Return whether the network is configured for the UPF service."""
         ifaces_are_configured = (
-                self.access_interface.addresses_are_set()
-                and self.core_interface.addresses_are_set()
+            self.access_interface.addresses_are_set()
+            and self.core_interface.addresses_are_set()
         )
         routes_are_configured = (
             self.default_route.exists()
