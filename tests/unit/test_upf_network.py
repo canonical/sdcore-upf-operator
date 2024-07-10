@@ -23,11 +23,17 @@ class MockIPAddr:
 
 class MockInterface:
     def __init__(
-        self, name: str, ipv4_address: str = "", ipv6_address: str = "", mtu_size: int = 1500
+        self,
+        name: str,
+        ipv4_address: str = "",
+        ipv6_address: str = "",
+        mtu_size: int = 1500,
+        state: str = "down",
     ):
         self.name = name
         self.ipaddr = [MockIPAddr(ipv4_address=ipv4_address, ipv6_address=ipv6_address)]
         self.mtu = mtu_size
+        self.state = state
 
     def get(self, key):
         return getattr(self, key)
@@ -151,12 +157,29 @@ class TestNetworkInterface:
 
         assert address == self.interface_ipv4_address
 
+    def test_given_interface_status_is_up_when_get_interface_status_then_state_is_up(self):
+        self.network_interface.network_db.interfaces = MockInterfaces(
+            interfaces=[
+                MockInterface(
+                    ipv4_address=self.interface_ipv4_address,
+                    name=self.network_interface_name,
+                    state="up",
+                )
+            ]
+        )
+        assert self.network_interface.interface_is_up()
+
     def test_given_interface_doesnt_exist_when_get_interface_ip_address_then_empty_string_is_returned(self):  # noqa: E501
         self.network_interface.network_db.interfaces = MockInterfaces(interfaces=[])
 
         address = self.network_interface.get_ip_address()
 
         assert address == ""
+
+    def test_given_interface_doesnt_exist_when_check_interface_states_then_false_is_returned(self):  # noqa: E501
+        self.network_interface.network_db.interfaces = MockInterfaces(interfaces=[])
+
+        assert self.network_interface.interface_is_up() is False
 
     def test_given_interface_doesnt_have_ipv4_address_when_get_interface_ip_address_then_empty_string_is_returned(self):  # noqa: E501
         self.network_interface.network_db.interfaces = MockInterfaces(
@@ -1163,5 +1186,4 @@ class TestUPFNetwork:
         )
 
         upf_network.configure()
-
         mock_core_interface_instance.set_mtu_size.assert_not_called()
