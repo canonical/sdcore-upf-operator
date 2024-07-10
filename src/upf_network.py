@@ -9,6 +9,7 @@ from socket import AF_INET
 from typing import List, Optional
 
 import iptc
+from charm_config import UpfMode
 from pyroute2 import NDB, IPRoute, NetlinkError
 
 logger = logging.getLogger(__name__)
@@ -77,6 +78,50 @@ class NetworkInterface:
         logger.warning("Interface %s not found in the network database", self.name)
         return False
 
+    def mac_address_is_set(self) -> bool:
+        """Check if the given network interface has the right MAC address."""
+        interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
+        if iface_record := interfaces.get(self.name):
+            mac_address = iface_record.get("address")
+            if mac_address != self.mac_address:
+                return False
+            return True
+        logger.warning("Interface %s not found in the network database", self.name)
+        return False
+
+    def set_mac_address(self) -> None:
+        """Set the MAC address for the given network interface."""
+        interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
+        if iface_record := interfaces.get(self.name):
+            iface_record.set(address=self.mac_address).commit()
+            logger.info("MAC address for the %s interface set to %s", self.name, self.mac_address)
+        logger.warning(
+            "Setting MAC address for interface %s failed: Interface not found in the network database",  # noqa: E501
+            self.name,
+        )
+
+    def alias_is_set(self) -> bool:
+        """Check if the given network interface has the right alias set."""
+        interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
+        if iface_record := interfaces.get(self.name):
+            alias = iface_record.get("ifalias")
+            if alias != self.alias:
+                return False
+            return True
+        logger.warning("Interface %s not found in the network database", self.name)
+        return False
+
+    def set_alias(self) -> None:
+        """Set an alias for the given network interface."""
+        interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
+        if iface_record := interfaces.get(self.name):
+            iface_record.set(ifalias=self.alias).commit()
+            logger.info("Alias for the %s interface set to %s", self.name, self.mac_address)
+        logger.warning(
+            "Setting alias for interface %s failed: Interface not found in the network database",
+            self.name,
+        )
+
     def set_ip_address(self) -> None:
         """Clean all unrequired IPs and set the IP address for the given network interface."""
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
@@ -140,6 +185,16 @@ class NetworkInterface:
             self.alias,
         )
 
+    def delete(self) -> None:
+        """Delete given network interface."""
+        interface_index = self.get_index()
+        self.ip_route.link(
+            "del",
+            index=interface_index
+        )
+        logger.info("Network interface %s deleted", self.name)
+        self.ip_route.close()
+
     def mtu_size_is_set(self) -> bool:
         """Check if MTU size of the given network interface is already configured ."""
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
@@ -159,18 +214,6 @@ class NetworkInterface:
             "Setting MTU size for interface %s failed: Interface not found in the network database",  # noqa: E501
             self.name,
         )
-
-    def get_gateway_ip_address(self) -> str:
-        """Get the gateway IPv4 address of the given network interface."""
-        iface_index = self.get_index()
-        routes = self.ip_route.get_routes(family=AF_INET)
-        for route in routes:
-            oif = route.get_attr("RTA_OIF")
-            gateway_ip = route.get_attr("RTA_GATEWAY")
-            if oif == iface_index:
-                if gateway_ip:
-                    return gateway_ip
-        return ""
 
     def get_index(self) -> int:
         """Get the index of the network interface."""
@@ -313,11 +356,12 @@ class UPFNetwork:
         core_mac_address: Optional[str] = None,
         core_pci_address: Optional[str] = None,
     ):
+        self.upf_mode = upf_mode
         if not access_interface_name:
             raise ValueError("Access network interface name is empty")
         if not core_interface_name:
             raise ValueError("Core network interface name is empty")
-        if upf_mode == "dpdk":
+        if upf_mode == UpfMode.dpdk:
             if not access_mac_address:
                 raise ValueError("Access network interface MAC address is empty")
             if not access_pci_address:
@@ -374,6 +418,8 @@ class UPFNetwork:
             self.core_interface.set_ip_address()
         if not self.core_interface.mtu_size_is_set():
             self.core_interface.set_mtu_size()
+        if self.upf_mode == UpfMode.dpdk:
+            self._configure_interfaces_for_dpdk()
         if not self.default_route.exists():
             logger.info("Default route does not exist")
             self.default_route.create()
@@ -386,10 +432,20 @@ class UPFNetwork:
 
     def is_configured(self) -> bool:
         """Return whether the network is configured for the UPF service."""
-        ifaces_are_configured = (
-            self.access_interface.addresses_are_set()
-            and self.core_interface.addresses_are_set()
-        )
+        if self.upf_mode == UpfMode.dpdk:
+            ifaces_are_configured = (
+                self.access_interface.addresses_are_set()
+                and self.access_interface.mac_address_is_set()
+                and self.access_interface.alias_is_set()
+                and self.core_interface.addresses_are_set()
+                and self.core_interface.mac_address_is_set()
+                and self.core_interface.alias_is_set()
+            )
+        else:
+            ifaces_are_configured = (
+                self.access_interface.addresses_are_set()
+                and self.core_interface.addresses_are_set()
+            )
         routes_are_configured = (
             self.default_route.exists()
             and self.ran_route.exists()
@@ -399,6 +455,11 @@ class UPFNetwork:
 
     def clean_configuration(self) -> None:
         """Remove the configured IPs/routes from the networking."""
+        if self.upf_mode == UpfMode.dpdk:
+            if self.access_interface.exists():
+                self.access_interface.delete()
+            if self.core_interface.exists():
+                self.core_interface.delete()
         if self.access_interface.get_ip_address():
             self.access_interface.unset_ip_address()
         if self.core_interface.get_ip_address():
@@ -409,3 +470,13 @@ class UPFNetwork:
             self.ran_route.delete()
         if self.ip_tables_rule.exists():
             self.ip_tables_rule.delete()
+
+    def _configure_interfaces_for_dpdk(self) -> None:
+        if not self.access_interface.mac_address_is_set():
+            self.access_interface.set_mac_address()
+        if not self.access_interface.alias_is_set():
+            self.access_interface.set_alias()
+        if not self.core_interface.mac_address_is_set():
+            self.core_interface.set_mac_address()
+        if not self.core_interface.alias_is_set():
+            self.core_interface.set_alias()

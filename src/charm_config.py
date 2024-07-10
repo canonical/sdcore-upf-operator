@@ -61,29 +61,61 @@ class UpfConfig(BaseModel):  # pylint: disable=too-few-public-methods
     access_ip: str
     access_gateway_ip: IPvAnyAddress
     access_interface_mtu_size: int = Field(ge=1200, le=65535)
-    access_interface_mac_address: Optional[StrictStr]
-    access_interface_pci_address: Optional[StrictStr]
+    access_interface_mac_address: Optional[str]
+    access_interface_pci_address: Optional[str]
     core_interface_name: StrictStr
     core_ip: str
     core_gateway_ip: IPvAnyAddress
     core_interface_mtu_size: int = Field(ge=1200, le=65535)
-    core_interface_mac_address: Optional[StrictStr]
-    core_interface_pci_address: Optional[StrictStr]
+    core_interface_mac_address: Optional[str]
+    core_interface_pci_address: Optional[str]
     external_upf_hostname: Optional[StrictStr]
     enable_hw_checksum: bool
 
-    @classmethod
     @validator("gnb_subnet")
+    @classmethod
     def validate_ip_subnet(cls, value):
         """Validate that IP network address is valid."""
         ip_network(value, strict=True)
         return value
 
-    @classmethod
     @validator("access_ip", "core_ip")
+    @classmethod
     def validate_ip_network_address(cls, value: str) -> str:
         """Validate that IP network address is valid."""
         ip_network(value, strict=False)
+        return value
+
+    @validator("access_interface_mac_address", always=True)
+    @classmethod
+    def validate_access_interface_mac_address(cls, value: str, values) -> str:
+        """Make sure access interface MAC address is given when using DPDK mode."""
+        if values["upf_mode"] == UpfMode.dpdk and not value:
+            raise ValueError("Access network interface MAC address is empty")
+        return value
+
+    @validator("access_interface_pci_address", always=True)
+    @classmethod
+    def validate_access_interface_pci_address(cls, value: str, values) -> str:
+        """Make sure access interface PCI address is given when using DPDK mode."""
+        if values["upf_mode"] == UpfMode.dpdk and not value:
+            raise ValueError("Access network interface PCI address is empty")
+        return value
+
+    @validator("core_interface_mac_address", always=True)
+    @classmethod
+    def validate_core_interface_mac_address(cls, value: str, values) -> str:
+        """Make sure core interface MAC address is given when using DPDK mode."""
+        if values["upf_mode"] == UpfMode.dpdk and not value:
+            raise ValueError("Core network interface MAC address is empty")
+        return value
+
+    @validator("core_interface_pci_address", always=True)
+    @classmethod
+    def validate_core_interface_pci_address(cls, value: str, values) -> str:
+        """Make sure core interface PCI address is given when using DPDK mode."""
+        if values["upf_mode"] == UpfMode.dpdk and not value:
+            raise ValueError("Core network interface PCI address is empty")
         return value
 
 

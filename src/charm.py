@@ -119,6 +119,7 @@ class SdcoreUpfCharm(ops.CharmBase):
             return
 
         if self._charm_config.upf_mode == UpfMode.dpdk:
+            logger.error("TUTUTUTUTUTUTUTUTUTUTUTUTUTUTUT")
             self._create_access_interface()
             self._create_core_interface()
         self._network = self._get_network_configuration()

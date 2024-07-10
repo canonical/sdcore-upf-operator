@@ -14,7 +14,6 @@ jobs:
     secrets:
       CHARMCRAFT_AUTH: ${{ secrets.CHARMCRAFT_AUTH }}
 
-
   lint-report:
     uses: canonical/sdcore-github-workflows/.github/workflows/lint-report.yaml@v1.0.0
 
@@ -29,8 +28,27 @@ jobs:
       - lint-report
       - static-analysis
       - unit-tests-with-coverage
-    uses: canonical/sdcore-github-workflows/.github/workflows/build.yaml@v1.0.0
-    secrets: inherit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup LXD
+        uses: canonical/setup-lxd@main
+        with:
+          channel: 5.20/stable
+
+      - name: Install charmcraft
+        run: sudo snap install charmcraft --channel=edge --classic
+
+      - name: Build charm under test
+        run: charmcraft pack --verbose
+
+      - name: Archive Charm Under Test
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-charm
+          path: "*.charm"
+          retention-days: 5
 
   integration-test:
     needs:
