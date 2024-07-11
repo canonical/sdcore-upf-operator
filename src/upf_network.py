@@ -83,9 +83,7 @@ class NetworkInterface:
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
         if iface_record := interfaces.get(self.name):
             mac_address = iface_record.get("address")
-            if mac_address != self.mac_address:
-                return False
-            return True
+            return mac_address == self.mac_address
         logger.warning("Interface %s not found in the network database", self.name)
         return False
 
