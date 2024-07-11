@@ -74,7 +74,7 @@ class NetworkInterface:
         if iface_record := interfaces.get(self.name):
             return iface_record["state"] == "up"
         logger.warning(
-            "Checking the state of network interface is failed: Interface %s not found in the network database",
+            "Checking the state of network interface is failed: Interface %s not found in the network database",  # noqa: E501
             self.name,
         )
         return False
@@ -85,7 +85,7 @@ class NetworkInterface:
         if iface_record := interfaces.get(self.name):
             iface_record.set(state="up").commit()
         logger.warning(
-            "Setting the interface state to up is failed: Interface %s not found in the network database",
+            "Setting the interface state to up is failed: Interface %s not found in the network database",  # noqa: E501
             self.name,
         )
 
