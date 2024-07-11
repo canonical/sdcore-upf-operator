@@ -115,10 +115,11 @@ class NetworkInterface:
             iface_record.set(ifalias=self.alias).commit()
             logger.info("Alias for the %s interface set to %s", self.name, self.mac_address)
             return
-            return
         logger.warning(
             "Setting alias for interface %s failed: Interface not found in the network database",
-=======
+            self.name
+        )
+
     def interface_is_up(self) -> bool:
         """Check if the given network interface is up."""
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
@@ -159,9 +160,9 @@ class NetworkInterface:
                 iface_record.add_ip(self.ip_address).commit()
         else:
             logger.warning(
-            "Setting IP for interface %s failed: Interface not found in the network database",
-            self.name,
-        )
+                "Setting IP for interface %s failed: Interface not found in the network database",
+                self.name,
+            )
 
     def unset_ip_address(self) -> None:
         """Remove the configured IP address from the given network interface."""
@@ -430,20 +431,11 @@ class UPFNetwork:
 
     def configure(self) -> None:
         """Configure the network for the UPF service."""
-        if not self.access_interface.addresses_are_set():
-            self.access_interface.set_ip_address()
-        if not self.access_interface.mtu_size_is_set():
-            self.access_interface.set_mtu_size()
-        if not self.access_interface.interface_is_up():
-            self.access_interface.bring_up_interface()
-        if not self.core_interface.addresses_are_set():
-            self.core_interface.set_ip_address()
-        if not self.core_interface.mtu_size_is_set():
-            self.core_interface.set_mtu_size()
+        self._set_ip_addresses()
+        self._set_mtu_size()
         if self.upf_mode == UpfMode.dpdk:
             self._configure_interfaces_for_dpdk()
-        if not self.core_interface.interface_is_up():
-            self.core_interface.bring_up_interface()
+        self._bring_interfaces_up()
         if not self.default_route.exists():
             logger.info("Default route does not exist")
             self.default_route.create()
@@ -508,3 +500,21 @@ class UPFNetwork:
             self.core_interface.set_mac_address()
         if not self.core_interface.alias_is_set():
             self.core_interface.set_alias()
+
+    def _set_ip_addresses(self) -> None:
+        if not self.access_interface.addresses_are_set():
+            self.access_interface.set_ip_address()
+        if not self.core_interface.addresses_are_set():
+            self.core_interface.set_ip_address()
+
+    def _set_mtu_size(self) -> None:
+        if not self.access_interface.mtu_size_is_set():
+            self.access_interface.set_mtu_size()
+        if not self.core_interface.mtu_size_is_set():
+            self.core_interface.set_mtu_size()
+
+    def _bring_interfaces_up(self) -> None:
+        if not self.access_interface.interface_is_up():
+            self.access_interface.bring_up_interface()
+        if not self.core_interface.interface_is_up():
+            self.core_interface.bring_up_interface()

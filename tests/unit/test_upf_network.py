@@ -1239,7 +1239,7 @@ class TestUPFNetwork:
         upf_network.configure()
         mock_core_interface_instance.set_mtu_size.assert_not_called()
 
-def test_given_upf_mode_is_dpdk_and_access_mac_address_is_not_set_when_upfnetwork_instantiated_then_value_error_is_raised(  # noqa: E501
+    def test_given_upf_mode_is_dpdk_and_access_mac_address_is_not_set_when_upfnetwork_instantiated_then_value_error_is_raised(  # noqa: E501
         self,
     ):
         with pytest.raises(ValueError, match="Access network interface MAC address is empty"):
@@ -1812,7 +1812,7 @@ def test_given_upf_mode_is_dpdk_and_access_mac_address_is_not_set_when_upfnetwor
         upf_network.configure()
 
         mock_core_interface_instance.set_alias.assert_not_called()
-       
+
     def test_given_interfaces_are_down_when_configure_then_bring_up_interface_is_called_for_both_interfaces(self):  # noqa: E501
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
@@ -1829,6 +1829,7 @@ def test_given_upf_mode_is_dpdk_and_access_mac_address_is_not_set_when_upfnetwor
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -1861,6 +1862,7 @@ def test_given_upf_mode_is_dpdk_and_access_mac_address_is_not_set_when_upfnetwor
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
