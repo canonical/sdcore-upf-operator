@@ -104,9 +104,7 @@ class NetworkInterface:
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
         if iface_record := interfaces.get(self.name):
             alias = iface_record.get("ifalias")
-            if alias != self.alias:
-                return False
-            return True
+            return alias == self.alias
         logger.warning("Interface %s not found in the network database", self.name)
         return False
 
