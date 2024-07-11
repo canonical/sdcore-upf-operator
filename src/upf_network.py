@@ -95,6 +95,7 @@ class NetworkInterface:
         if iface_record := interfaces.get(self.name):
             iface_record.set(address=self.mac_address).commit()
             logger.info("MAC address for the %s interface set to %s", self.name, self.mac_address)
+            return
         logger.warning(
             "Setting MAC address for interface %s failed: Interface not found in the network database",  # noqa: E501
             self.name,
