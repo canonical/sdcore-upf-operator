@@ -84,6 +84,7 @@ class NetworkInterface:
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
         if iface_record := interfaces.get(self.name):
             iface_record.set(state="up").commit()
+            return
         logger.warning(
             "Setting the interface state to up is failed: Interface %s not found in the network database",  # noqa: E501
             self.name,
