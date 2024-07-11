@@ -68,6 +68,28 @@ class NetworkInterface:
         logger.warning("Interface %s not found in the network database", self.name)
         return False
 
+    def interface_is_up(self) -> bool:
+        """Check if the given network interface is up."""
+        interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
+        if iface_record := interfaces.get(self.name):
+            return iface_record["state"] == "up"
+        logger.warning(
+            "Checking the state of network interface is failed: Interface %s not found in the network database",  # noqa: E501
+            self.name,
+        )
+        return False
+
+    def bring_up_interface(self) -> None:
+        """Set the network interface status to up."""
+        interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
+        if iface_record := interfaces.get(self.name):
+            iface_record.set(state="up").commit()
+            return
+        logger.warning(
+            "Setting the interface state to up is failed: Interface %s not found in the network database",  # noqa: E501
+            self.name,
+        )
+
     def set_ip_address(self) -> None:
         """Clean all unrequired IPs and set the IP address for the given network interface."""
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
@@ -296,10 +318,14 @@ class UPFNetwork:
             self.access_interface.set_ip_address()
         if not self.access_interface.mtu_size_is_set():
             self.access_interface.set_mtu_size()
+        if not self.access_interface.interface_is_up():
+            self.access_interface.bring_up_interface()
         if not self.core_interface.addresses_are_set():
             self.core_interface.set_ip_address()
         if not self.core_interface.mtu_size_is_set():
             self.core_interface.set_mtu_size()
+        if not self.core_interface.interface_is_up():
+            self.core_interface.bring_up_interface()
         if not self.default_route.exists():
             logger.info("Default route does not exist")
             self.default_route.create()
@@ -321,7 +347,11 @@ class UPFNetwork:
             and self.ran_route.exists()
             and self.ip_tables_rule.exists()
         )
-        return ifaces_are_configured and routes_are_configured
+        interfaces_are_up = (
+            self.access_interface.interface_is_up()
+            and self.core_interface.interface_is_up()
+        )
+        return ifaces_are_configured and routes_are_configured and interfaces_are_up
 
     def clean_configuration(self) -> None:
         """Remove the configured IPs/routes from the networking."""
