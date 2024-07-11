@@ -1331,7 +1331,7 @@ class TestUPFNetwork:
 
         mock_access_interface_instance.delete.assert_called_once()
 
-    def test_given_upf_mode_is_dpdk_and_access_interface_doesnt_exist_when_clean_configuration_then_access_interface_is_deleted(  # noqa: E501
+    def test_given_upf_mode_is_dpdk_and_access_interface_doesnt_exist_when_clean_configuration_then_access_interface_is_not_deleted(  # noqa: E501
         self,
     ):
         mock_access_interface_instance = MagicMock()
