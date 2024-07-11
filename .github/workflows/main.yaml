@@ -57,29 +57,88 @@ jobs:
 
   publish-charm:
     name: Publish Charm
+    runs-on: ubuntu-22.04
+    if: ${{ github.ref_name == 'main' }}
     needs:
       - lint-report
       - static-analysis
       - unit-tests-with-coverage
       - integration-test
-    if: ${{ github.ref_name == 'main' }}
-    uses: canonical/sdcore-github-workflows/.github/workflows/publish-charm.yaml@v1.0.0
-    with:
-      track-name: 1.4
-    secrets:
-      CHARMCRAFT_AUTH: ${{ secrets.CHARMCRAFT_AUTH }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch Tested Charm
+        uses: actions/download-artifact@v4
+        with:
+          name: built-charm
+
+      - name: Get Charm Under Test Path
+        id: charm-path
+        run: echo "charm_path=$(find . -name '*.charm' -type f -print)" >> $GITHUB_OUTPUT
+
+      - name: Install charmcraft
+        run: sudo snap install charmcraft --classic --channel=edge
+
+      - name: Upload charm to Charmhub
+        uses: canonical/charming-actions/upload-charm@e924d251d7b924767820049a2aa6244ed050b2aa
+        with:
+          built-charm-path: ${{ steps.charm-path.outputs.charm_path }}
+          credentials: "${{ secrets.CHARMCRAFT_AUTH }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          channel: 1.4/edge
+
+      - name: Archive charmcraft logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: charmcraft-logs
+          path: /home/runner/.local/state/charmcraft/log/*.log
 
   publish-charm-on-push:
     name: Publish Developer Charm To Branch
+    runs-on: ubuntu-22.04
+    if: ${{ (github.ref_name != 'main') && (github.event_name == 'push') }}
+    permissions:
+      contents: write
     needs:
       - lint-report
       - static-analysis
       - unit-tests-with-coverage
       - integration-test
-    if: ${{ (github.ref_name != 'main') && (github.event_name == 'push') }}
-    uses: canonical/sdcore-github-workflows/.github/workflows/publish-charm.yaml@v1.0.0
-    with:
-      branch-name: ${{ github.ref_name }}
-      track-name: 1.4
-    secrets:
-      CHARMCRAFT_AUTH: ${{ secrets.CHARMCRAFT_AUTH }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch Tested Charm
+        uses: actions/download-artifact@v4
+        with:
+          name: built-charm
+
+      - name: Get Charm Under Test Path
+        id: charm-path
+        run: echo "charm_path=$(find . -name '*.charm' -type f -print)" >> $GITHUB_OUTPUT
+
+      - name: Install charmcraft
+        run: sudo snap install charmcraft --classic --channel=edge
+
+      - name: Sanitize the branch variable
+        id: sanitize
+        run: |
+          echo sanitized=$(echo ${{ github.ref_name }} | sed 's/[/_.]/-/g' | sed "s/^/\//") >> $GITHUB_OUTPUT
+        if: ${{ github.ref_name }} != ""
+
+      - name: Upload charm to Charmhub
+        uses: canonical/charming-actions/upload-charm@e924d251d7b924767820049a2aa6244ed050b2aa
+        with:
+          built-charm-path: ${{ steps.charm-path.outputs.charm_path }}
+          credentials: "${{ secrets.CHARMCRAFT_AUTH }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          channel: 1.4/edge${{ steps.sanitize.outputs.sanitized }}
+
+      - name: Archive charmcraft logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: charmcraft-logs
+          path: /home/runner/.local/state/charmcraft/log/*.log
