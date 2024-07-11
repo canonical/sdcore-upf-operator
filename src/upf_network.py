@@ -137,7 +137,8 @@ class NetworkInterface:
             if not self.get_ip_address():
                 logger.info("Adding IP %s to interface %s", self.ip_address, self.name)
                 iface_record.add_ip(self.ip_address).commit()
-        logger.warning(
+        else:
+            logger.warning(
             "Setting IP for interface %s failed: Interface not found in the network database",
             self.name,
         )
