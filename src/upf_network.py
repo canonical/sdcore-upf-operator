@@ -72,7 +72,7 @@ class NetworkInterface:
         """Check if the given network interface is up."""
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
         if iface_record := interfaces.get(self.name):
-            return iface_record.state == "up"
+            return iface_record["state"] == "up"
         logger.warning("Interface %s not found in the network database", self.name)
         return False
 
@@ -80,7 +80,8 @@ class NetworkInterface:
         """Set the network interface status to up."""
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
         if iface_record := interfaces.get(self.name):
-            iface_record.up()
+            iface_record.set(state="up")
+            iface_record.commit()
         logger.warning("Interface %s not found in the network database", self.name)
 
     def set_ip_address(self) -> None:

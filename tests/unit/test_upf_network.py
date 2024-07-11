@@ -36,6 +36,10 @@ class MockInterface:
         self.state = state
 
     def get(self, key):
+        return self.__getitem__(key)
+
+    def __getitem__(self, key):
+        """Return the given attribute from the interface."""
         return getattr(self, key)
 
 
@@ -1187,3 +1191,67 @@ class TestUPFNetwork:
 
         upf_network.configure()
         mock_core_interface_instance.set_mtu_size.assert_not_called()
+
+    def test_given_interfaces_are_down_when_configure_then_bring_up_interface_is_called_for_both_interfaces(self):  # noqa: E501
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.addresses_are_set.return_value = True
+        mock_access_interface_instance.mtu_size_is_set.return_value = True
+        mock_access_interface_instance.interface_is_up.return_value = False
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.addresses_are_set.return_value = True
+        mock_core_interface_instance.mtu_size_is_set.return_value = True
+        mock_core_interface_instance.interface_is_up.return_value = False
+        self.mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        upf_network = UPFNetwork(
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.configure()
+
+        mock_access_interface_instance.bring_up_interface.assert_called_once()
+        mock_core_interface_instance.bring_up_interface.assert_called_once()
+
+    def test_given_interfaces_are_up_when_configure_then_bring_up_interface_is_not_called(self):
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.addresses_are_set.return_value = True
+        mock_access_interface_instance.mtu_size_is_set.return_value = True
+        mock_access_interface_instance.interface_is_up.return_value = True
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.addresses_are_set.return_value = True
+        mock_core_interface_instance.mtu_size_is_set.return_value = True
+        mock_core_interface_instance.interface_is_up.return_value = True
+        self.mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        upf_network = UPFNetwork(
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.configure()
+
+        mock_access_interface_instance.bring_up_interface.assert_not_called()
+        mock_core_interface_instance.bring_up_interface.assert_not_called()
