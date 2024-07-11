@@ -119,6 +119,7 @@ class NetworkInterface:
             iface_record.set(ifalias=self.alias).commit()
             logger.info("Alias for the %s interface set to %s", self.name, self.mac_address)
             return
+            return
         logger.warning(
             "Setting alias for interface %s failed: Interface not found in the network database",
             self.name,
