@@ -73,16 +73,21 @@ class NetworkInterface:
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
         if iface_record := interfaces.get(self.name):
             return iface_record["state"] == "up"
-        logger.warning("Interface %s not found in the network database", self.name)
+        logger.warning(
+            "Checking the state of network interface is failed: Interface %s not found in the network database",
+            self.name,
+        )
         return False
 
     def bring_up_interface(self) -> None:
         """Set the network interface status to up."""
         interfaces = self.network_db.interfaces  # type: ignore[reportAttributeAccessIssue]
         if iface_record := interfaces.get(self.name):
-            iface_record.set(state="up")
-            iface_record.commit()
-        logger.warning("Interface %s not found in the network database", self.name)
+            iface_record.set(state="up").commit()
+        logger.warning(
+            "Setting the interface state to up is failed: Interface %s not found in the network database",
+            self.name,
+        )
 
     def set_ip_address(self) -> None:
         """Clean all unrequired IPs and set the IP address for the given network interface."""
