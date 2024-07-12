@@ -65,7 +65,7 @@ jobs:
           juju add-model upf-integration
 
           echo "# Prepare UPF VM"
-          while ! multipass launch 22.04 --name upf --network access --network core --memory 8G --cpus 4; do
+          while ! multipass launch 24.04 --name upf --network access --network core --memory 8G --cpus 4; do
             sleep 5
             echo "Retrying VM creation"
           done

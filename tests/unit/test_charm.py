@@ -78,7 +78,6 @@ class TestCharm:
         upf_snap.ensure.assert_called_with(
             SnapState.Latest,
             channel="1.4/edge",
-            revision="49",
             devmode=True,
         )
         upf_snap.hold.assert_called()
@@ -257,6 +256,68 @@ class TestCharm:
 
         self.mock_upf_network.configure.assert_called_once()
 
+    def test_given_upf_mode_is_dpdk_and_all_required_configs_are_given_and_access_interface_doesnt_exist_when_config_changed_then_access_interface_is_created(  # noqa: E501
+        self,
+    ):
+        self.mock_upf_network.access_interface.exists.return_value = False
+        self.harness.update_config(
+            {
+                "upf-mode": "dpdk",
+                "access-interface-mac-address": "aa:bb:cc:dd",
+                "access-interface-pci-address": "0000:01:00.0",
+                "core-interface-mac-address": "dd:cc:bb:aa",
+                "core-interface-pci-address": "0000:02:00.0",
+            }
+        )
+
+        self.mock_upf_network.access_interface.create.assert_called_once()
+
+    def test_given_upf_mode_is_dpdk_and_all_required_configs_are_given_and_access_interface_exists_when_config_changed_then_access_interface_is_not_created(  # noqa: E501
+        self,
+    ):
+        self.harness.update_config(
+            {
+                "upf-mode": "dpdk",
+                "access-interface-mac-address": "aa:bb:cc:dd",
+                "access-interface-pci-address": "0000:01:00.0",
+                "core-interface-mac-address": "dd:cc:bb:aa",
+                "core-interface-pci-address": "0000:02:00.0",
+            }
+        )
+
+        self.mock_upf_network.access_interface.create.assert_not_called()
+
+    def test_given_upf_mode_is_dpdk_and_all_required_configs_are_given_and_core_interface_doesnt_exist_when_config_changed_then_core_interface_is_created(  # noqa: E501
+        self,
+    ):
+        self.mock_upf_network.core_interface.exists.return_value = False
+        self.harness.update_config(
+            {
+                "upf-mode": "dpdk",
+                "access-interface-mac-address": "aa:bb:cc:dd",
+                "access-interface-pci-address": "0000:01:00.0",
+                "core-interface-mac-address": "dd:cc:bb:aa",
+                "core-interface-pci-address": "0000:02:00.0",
+            }
+        )
+
+        self.mock_upf_network.core_interface.create.assert_called_once()
+
+    def test_given_upf_mode_is_dpdk_and_all_required_configs_are_given_and_core_interface_exists_when_config_changed_then_core_interface_is_not_created(  # noqa: E501
+        self,
+    ):
+        self.harness.update_config(
+            {
+                "upf-mode": "dpdk",
+                "access-interface-mac-address": "aa:bb:cc:dd",
+                "access-interface-pci-address": "0000:01:00.0",
+                "core-interface-mac-address": "dd:cc:bb:aa",
+                "core-interface-pci-address": "0000:02:00.0",
+            }
+        )
+
+        self.mock_upf_network.core_interface.create.assert_not_called()
+
     def test_given_unit_is_not_leader_when_fiveg_n4_request_then_upf_hostname_is_not_published(self):  # noqa: E501
         mock_publish_upf_n4_information = patch("charms.sdcore_upf_k8s.v0.fiveg_n4.N4Provides.publish_upf_n4_information").start()  # noqa: E501
         self.harness.set_leader(is_leader=False)
@@ -384,11 +445,9 @@ class TestCharmInitialisation:
     def setup(self):
         mock_upf_network = MagicMock()
         mock_upf_network.get_invalid_network_interfaces.return_value = []
-        mock_upf_network.core_interface.get_ip_address.return_value = "192.168.250.3"
         mock_machine = MagicMock()
-        mock_machine.pull.return_value = ""
         mock_process = MagicMock()
-        mock_process.wait_output.return_value = ("", "")
+        mock_process.wait_output.return_value = ("Flags: avx2 rdrand", "")
         mock_machine.exec.return_value = mock_process
         self.mock_upf_network = TestCharmInitialisation.patcher_upf_network.start()
         self.mock_upf_network.return_value = mock_upf_network
@@ -410,11 +469,43 @@ class TestCharmInitialisation:
         request.addfinalizer(self.teardown)
 
     def test_given_invalid_iface_ip_config_when_config_changed_then_status_is_blocked(self):
-        self.harness.update_config({"access-ip": "not an ip address"})
+        self.harness.update_config(
+            {"access-ip": "not an ip address", "core-ip": "not an ip address"}
+        )
         self.harness.begin()
 
         self.harness.evaluate_status()
 
         assert self.harness.model.unit.status == ops.BlockedStatus(
-                "The following configurations are not valid: ['access-ip']"
+                "The following configurations are not valid: ['access-ip', 'core-ip']"
             )
+
+    def test_given_upf_mode_is_dpdk_but_mac_addresses_and_pci_addresses_are_missing_when_config_changed_then_status_is_blocked(  # noqa: E501
+        self,
+    ):
+        self.harness.update_config({"upf-mode": "dpdk"})
+        self.harness.begin()
+
+        self.harness.evaluate_status()
+
+        assert self.harness.model.unit.status == ops.BlockedStatus(
+            "The following configurations are not valid: ['access-interface-mac-address', 'access-interface-pci-address', 'core-interface-mac-address', 'core-interface-pci-address']"  # noqa: E501
+        )
+
+    def test_given_upf_mode_is_dpdk_and_all_required_configs_are_given_when_config_changed_then_status_is_active(  # noqa: E501
+        self,
+    ):
+        self.harness.update_config(
+            {
+                "upf-mode": "dpdk",
+                "access-interface-mac-address": "aa:bb:cc:dd",
+                "access-interface-pci-address": "0000:01:00.0",
+                "core-interface-mac-address": "dd:cc:bb:aa",
+                "core-interface-pci-address": "0000:02:00.0",
+            }
+        )
+        self.harness.begin()
+
+        self.harness.evaluate_status()
+
+        assert self.harness.model.unit.status == ops.ActiveStatus()
