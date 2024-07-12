@@ -10,7 +10,7 @@ import time
 from typing import Optional
 
 import ops
-from charm_config import CharmConfig, CharmConfigInvalidError
+from charm_config import CharmConfig, CharmConfigInvalidError, UpfMode
 from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 from charms.operator_libs_linux.v2.snap import SnapCache, SnapError, SnapState
 from charms.sdcore_upf_k8s.v0.fiveg_n4 import N4Provides
@@ -27,7 +27,7 @@ from upf_network import UPFNetwork
 
 UPF_SNAP_NAME = "sdcore-upf"
 UPF_SNAP_CHANNEL = "1.4/edge"
-UPF_SNAP_REVISION = "49"
+UPF_SNAP_REVISION = "54"
 UPF_CONFIG_FILE_NAME = "upf.json"
 UPF_CONFIG_PATH = "/var/snap/sdcore-upf/common"
 PFCP_PORT = 8805
@@ -119,10 +119,12 @@ class SdcoreUpfCharm(ops.CharmBase):
         except CharmConfigInvalidError:
             return
 
+        if self._charm_config.upf_mode == UpfMode.dpdk:
+            self._create_access_interface()
+            self._create_core_interface()
         self._network = self._get_network_configuration()
         if self._network.get_invalid_network_interfaces():
             return
-
         self._network.configure()
         if not self._network.is_configured():
             return
@@ -138,18 +140,23 @@ class SdcoreUpfCharm(ops.CharmBase):
     def _get_network_configuration(self) -> UPFNetwork:
         """Get the network configuration for the UPF service."""
         return UPFNetwork(
-            access_interface_name=self._charm_config.access_interface_name,  # type: ignore
-            access_ip=self._charm_config.access_ip,  # type: ignore
-            access_gateway_ip=str(self._charm_config.access_gateway_ip),  # type: ignore
-            access_mtu_size=self._charm_config.access_interface_mtu_size,  # type: ignore
-            core_interface_name=self._charm_config.core_interface_name,  # type: ignore
-            core_ip=self._charm_config.core_ip,  # type: ignore
-            core_gateway_ip=str(self._charm_config.core_gateway_ip),  # type: ignore
-            core_mtu_size=self._charm_config.core_interface_mtu_size,  # type: ignore
+            upf_mode=self._charm_config.upf_mode,
+            access_interface_name=self._charm_config.access_interface_name,
+            access_ip=self._charm_config.access_ip,
+            access_gateway_ip=str(self._charm_config.access_gateway_ip),
+            access_mtu_size=self._charm_config.access_interface_mtu_size,
+            access_mac_address=self._charm_config.access_interface_mac_address,
+            access_pci_address=self._charm_config.access_interface_pci_address,
+            core_interface_name=self._charm_config.core_interface_name,
+            core_ip=self._charm_config.core_ip,
+            core_gateway_ip=str(self._charm_config.core_gateway_ip),
+            core_mac_address=self._charm_config.core_interface_mac_address,
+            core_pci_address=self._charm_config.core_interface_pci_address,
+            core_mtu_size=self._charm_config.core_interface_mtu_size,
             gnb_subnet=str(self._charm_config.gnb_subnet),
         )
 
-    def _on_remove(self, event: RemoveEvent):
+    def _on_remove(self, _: RemoveEvent):
         """Stop the upf services and uninstall snap."""
         snap_cache = SnapCache()
         upf_snap = snap_cache[UPF_SNAP_NAME]
@@ -159,12 +166,8 @@ class SdcoreUpfCharm(ops.CharmBase):
         upf_snap.ensure(SnapState.Absent)
         self._network.clean_configuration()
 
-    def _on_fiveg_n4_request(self, event) -> None:
-        """Handle 5G N4 requests events.
-
-        Args:
-            event: Juju event
-        """
+    def _on_fiveg_n4_request(self, _) -> None:
+        """Handle 5G N4 requests events."""
         if not self.unit.is_leader():
             return
         self._update_fiveg_n4_relation_data()
@@ -206,7 +209,6 @@ class SdcoreUpfCharm(ops.CharmBase):
             upf_snap.ensure(
                 SnapState.Latest,
                 channel=UPF_SNAP_CHANNEL,
-                revision=UPF_SNAP_REVISION,
                 devmode=True,
             )
             upf_snap.hold()
@@ -215,7 +217,8 @@ class SdcoreUpfCharm(ops.CharmBase):
             logger.error("An exception occurred when installing the UPF snap. Reason: %s", str(e))
             raise e
 
-    def _upf_snap_installed(self) -> bool:
+    @staticmethod
+    def _upf_snap_installed() -> bool:
         """Check if the UPF snap is installed."""
         snap_cache = SnapCache()
         upf_snap = snap_cache[UPF_SNAP_NAME]
@@ -248,21 +251,24 @@ class SdcoreUpfCharm(ops.CharmBase):
         upf_snap.start(services=["routectl"])
         logger.info("UPF routectl service started")
 
-    def _bessd_service_started(self) -> bool:
+    @staticmethod
+    def _bessd_service_started() -> bool:
         """Check if the bessd service is started."""
         snap_cache = SnapCache()
         upf_snap = snap_cache[UPF_SNAP_NAME]
         upf_services = upf_snap.services
         return upf_services["bessd"]["active"]
 
-    def _pfcp_service_started(self) -> bool:
+    @staticmethod
+    def _pfcp_service_started() -> bool:
         """Check if the pfcp service is started."""
         snap_cache = SnapCache()
         upf_snap = snap_cache[UPF_SNAP_NAME]
         upf_services = upf_snap.services
         return upf_services["pfcpiface"]["active"]
 
-    def _routectl_service_started(self) -> bool:
+    @staticmethod
+    def _routectl_service_started() -> bool:
         """Check if the routectl service is started."""
         snap_cache = SnapCache()
         upf_snap = snap_cache[UPF_SNAP_NAME]
@@ -354,10 +360,10 @@ class SdcoreUpfCharm(ops.CharmBase):
             raise ValueError("Core network IP address is not valid")
         content = render_upf_config_file(
             upf_hostname=self._get_upf_hostname(),
-            upf_mode=self._get_upf_mode(),
+            upf_mode=self._charm_config.upf_mode,
             access_interface_name=self._charm_config.access_interface_name,  # type: ignore
             core_interface_name=self._charm_config.core_interface_name,
-            core_ip_address=core_ip_address.split("/")[0] if core_ip_address else "",
+            core_ip_address=self._charm_config.core_ip.split("/")[0],
             dnn=self._charm_config.dnn,
             pod_share_path=UPF_CONFIG_PATH,
             enable_hw_checksum=self._charm_config.enable_hw_checksum,
@@ -385,10 +391,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         logger.info("Pushed %s config file", UPF_CONFIG_FILE_NAME)
 
     def _get_upf_hostname(self) -> str:
-        return "0.0.0.0"
-
-    def _get_upf_mode(self) -> str:
-        return "af_packet"
+        return self._charm_config.external_upf_hostname or "0.0.0.0"
 
     def _get_cpu_extensions(self) -> list[str]:
         """Return a list of extensions (instructions) supported by the CPU.
@@ -425,6 +428,14 @@ class SdcoreUpfCharm(ops.CharmBase):
             )
             return False
         return True
+
+    def _create_access_interface(self) -> None:
+        if not self._network.access_interface.exists():
+            self._network.access_interface.create()
+
+    def _create_core_interface(self) -> None:
+        if not self._network.core_interface.exists():
+            self._network.core_interface.create()
 
 
 def render_upf_config_file(

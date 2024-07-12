@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import iptc
 import pytest
+from charm_config import UpfMode
 from upf_network import IPTablesRule, NetworkInterface, Route, UPFNetwork
 
 
@@ -27,12 +28,18 @@ class MockInterface:
         name: str,
         ipv4_address: str = "",
         ipv6_address: str = "",
+        index: int = None,
         mtu_size: int = 1500,
+        mac_address: str = "",
+        alias: str = "",
         state: str = "down",
     ):
         self.name = name
+        self.index = index
         self.ipaddr = [MockIPAddr(ipv4_address=ipv4_address, ipv6_address=ipv6_address)]
         self.mtu = mtu_size
+        self.address = mac_address
+        self.ifalias = alias
         self.state = state
 
     def get(self, key):
@@ -45,6 +52,8 @@ class MockInterface:
 
 class MockInterfaces:
     def __init__(self, interfaces: List[MockInterface]):
+        for interface in interfaces:
+            interface.index = interfaces.index(interface)
         self.interfaces = interfaces
 
     def __getitem__(self, item):
@@ -133,11 +142,15 @@ class TestNetworkInterface:
         TestNetworkInterface.patcher_ndb.start()
         self.network_interface_name = "eth0"
         self.interface_ipv4_address = "1.2.3.4/24"
+        self.interface_mac_address = "aa:bb:cc:dd"
+        self.interface_alias = "0000:01:00.0"
         self.interface_mtu_size = 1400
         self.network_interface = NetworkInterface(
             name=self.network_interface_name,
             ip_address=self.interface_ipv4_address,
             mtu_size=1500,
+            alias=self.interface_alias,
+            mac_address=self.interface_mac_address,
         )
         self.network_interface.network_db = MockNDB()
         self.network_interface.ip_route = MockIPRoute(routes=[])
@@ -199,69 +212,18 @@ class TestNetworkInterface:
 
         assert address == ""
 
-    def test_given_interface_has_gateway_ip_address_when_get_gateway_ip_address_then_gateway_ip_is_returned(self):  # noqa: E501
-        gateway_ip = "1.2.3.1"
-
-        self.network_interface.ip_route = MockIPRoute(
-            routes=[
-                MockRoute(
-                    destination_network="1.2.3.0/24",
-                    gateway=gateway_ip,
-                    metric=123,
-                    oif=2,
-                ),
-            ],
-        )
-
-        address = self.network_interface.get_gateway_ip_address()
-
-        assert address == gateway_ip
-
-    def test_given_interface_doesnt_exist_when_get_gateway_ip_address_then_empty_string_is_returned(self):  # noqa: E501
-        self.network_interface.ip_route = MockIPRoute(routes=[])
-
-        address = self.network_interface.get_gateway_ip_address()
-
-        assert address == ""
-
-    def test_given_interface_doesnt_have_gateway_ip_address_when_get_gateway_ip_address_then_empty_string_is_returned(self):  # noqa: E501
-        self.network_interface.ip_route = MockIPRoute(
-            routes=[
-                MockRoute(
-                    destination_network="default",
-                    gateway="",
-                    metric=110,
-                    oif=2,
-                ),
-            ],
-        )
-
-        address = self.network_interface.get_gateway_ip_address()
-
-        assert address == ""
-
     def test_given_interface_exists_when_get_index_then_index_is_returned(self):
-        interface_index = 2
+        expected_interface_index = 0
         self.network_interface.network_db.interfaces = MockInterfaces(
             interfaces=[MockInterface(
                 ipv4_address=self.interface_ipv4_address,
                 name=self.network_interface_name
             )]
         )
-        self.network_interface.ip_route = MockIPRoute(
-            routes=[
-                MockRoute(
-                    destination_network="",
-                    gateway="",
-                    metric=0,
-                    oif=interface_index,
-                ),
-            ],
-        )
 
         index = self.network_interface.get_index()
 
-        assert index == interface_index
+        assert index == expected_interface_index
 
     def test_given_interface_doesnt_exist_when_get_index_then_negative_one_is_returned(self):
         self.network_interface.network_db.interfaces = MockInterfaces(interfaces=[])
@@ -344,6 +306,65 @@ class TestNetworkInterface:
         mtu_size_is_set = self.network_interface.mtu_size_is_set()
 
         assert mtu_size_is_set is False
+
+    def test_given_interface_has_the_wrong_mac_address_when_mac_address_is_set_then_false_is_returned(  # noqa: E501
+        self,
+    ):
+        self.network_interface.network_db.interfaces = MockInterfaces(
+            interfaces=[MockInterface(
+                ipv4_address=self.interface_ipv4_address,
+                name=self.network_interface_name,
+                mac_address="wrong mac",
+            )]
+        )
+
+        mac_address_is_set = self.network_interface.mac_address_is_set()
+
+        assert mac_address_is_set is False
+
+    def test_given_interface_has_the_right_mac_address_when_mac_address_is_set_then_true_is_returned(  # noqa: E501
+        self,
+    ):
+        self.network_interface.network_db.interfaces = MockInterfaces(
+            interfaces=[MockInterface(
+                ipv4_address=self.interface_ipv4_address,
+                name=self.network_interface_name,
+                mac_address=self.interface_mac_address,
+            )]
+        )
+
+        mac_address_is_set = self.network_interface.mac_address_is_set()
+
+        assert mac_address_is_set is True
+
+    def test_given_interface_doesnt_have_alias_set_when_alias_is_set_then_false_is_returned(
+        self,
+    ):
+        self.network_interface.network_db.interfaces = MockInterfaces(
+            interfaces=[MockInterface(
+                ipv4_address=self.interface_ipv4_address,
+                name=self.network_interface_name,
+            )]
+        )
+
+        alias_is_set = self.network_interface.alias_is_set()
+
+        assert alias_is_set is False
+
+    def test_given_interface_has_the_right_alias_set_when_alias_is_set_then_true_is_returned(
+            self,
+    ):
+        self.network_interface.network_db.interfaces = MockInterfaces(
+            interfaces=[MockInterface(
+                ipv4_address=self.interface_ipv4_address,
+                name=self.network_interface_name,
+                alias=self.interface_alias,
+            )]
+        )
+
+        alias_is_set = self.network_interface.alias_is_set()
+
+        assert alias_is_set is True
 
 
 class TestRoute:
@@ -483,6 +504,7 @@ class TestUPFNetwork:
         ]
 
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -507,6 +529,7 @@ class TestUPFNetwork:
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -532,6 +555,7 @@ class TestUPFNetwork:
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -564,6 +588,7 @@ class TestUPFNetwork:
         self.mock_route.return_value = mock_route_instance
         mock_route_instance.exists.return_value = True
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -594,6 +619,7 @@ class TestUPFNetwork:
         mock_default_route_instance.exists.return_value = False
         mock_ran_route_instance.exists.return_value = True
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -624,6 +650,7 @@ class TestUPFNetwork:
         mock_default_route_instance.exists.return_value = True
         mock_ran_route_instance.exists.return_value = True
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -649,6 +676,7 @@ class TestUPFNetwork:
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -680,6 +708,7 @@ class TestUPFNetwork:
         self.mock_route.return_value = mock_route_instance
         mock_route_instance.exists.return_value = True
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -709,6 +738,7 @@ class TestUPFNetwork:
         self.mock_route.side_effect = [mock_default_route_instance, mock_ran_route_instance]
         mock_ran_route_instance.exists.return_value = False
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -738,6 +768,7 @@ class TestUPFNetwork:
         self.mock_route.side_effect = [mock_default_route_instance, mock_ran_route_instance]
         mock_ran_route_instance.exists.return_value = True
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -763,6 +794,7 @@ class TestUPFNetwork:
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -790,6 +822,7 @@ class TestUPFNetwork:
         self.mock_iptables_rule.return_value = mock_iptables_rule_instance
         mock_iptables_rule_instance.exists.return_value = True
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -818,6 +851,7 @@ class TestUPFNetwork:
         self.mock_iptables_rule.return_value = mock_iptables_rule_instance
         mock_iptables_rule_instance.exists.return_value = False
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -846,6 +880,7 @@ class TestUPFNetwork:
         self.mock_iptables_rule.return_value = mock_iptables_rule_instance
         mock_iptables_rule_instance.exists.return_value = True
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -873,6 +908,7 @@ class TestUPFNetwork:
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -900,6 +936,7 @@ class TestUPFNetwork:
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -927,6 +964,7 @@ class TestUPFNetwork:
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -954,6 +992,7 @@ class TestUPFNetwork:
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -981,6 +1020,7 @@ class TestUPFNetwork:
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -1008,6 +1048,7 @@ class TestUPFNetwork:
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -1035,6 +1076,7 @@ class TestUPFNetwork:
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -1062,6 +1104,7 @@ class TestUPFNetwork:
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -1091,6 +1134,7 @@ class TestUPFNetwork:
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -1120,6 +1164,7 @@ class TestUPFNetwork:
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -1149,6 +1194,7 @@ class TestUPFNetwork:
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -1178,6 +1224,7 @@ class TestUPFNetwork:
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -1191,6 +1238,580 @@ class TestUPFNetwork:
 
         upf_network.configure()
         mock_core_interface_instance.set_mtu_size.assert_not_called()
+
+    def test_given_upf_mode_is_dpdk_and_access_mac_address_is_not_set_when_upfnetwork_instantiated_then_value_error_is_raised(  # noqa: E501
+        self,
+    ):
+        with pytest.raises(ValueError, match="Access network interface MAC address is empty"):
+            UPFNetwork(
+                upf_mode=UpfMode.dpdk,
+                access_interface_name=self.access_interface_name,
+                access_ip=self.access_ip,
+                access_gateway_ip=self.access_gateway_ip,
+                access_mtu_size=self.access_interface_mtu_size,
+                core_interface_name=self.core_interface_name,
+                core_ip=self.core_ip,
+                core_gateway_ip=self.core_gateway_ip,
+                core_mtu_size=self.core_interface_mtu_size,
+                gnb_subnet=self.gnb_subnet,
+            )
+
+    def test_given_upf_mode_is_dpdk_and_access_pci_address_is_not_set_when_upfnetwork_instantiated_then_value_error_is_raised(  # noqa: E501
+        self,
+    ):
+        with pytest.raises(ValueError, match="Access network interface PCI address is empty"):
+            UPFNetwork(
+                upf_mode=UpfMode.dpdk,
+                access_interface_name=self.access_interface_name,
+                access_ip=self.access_ip,
+                access_gateway_ip=self.access_gateway_ip,
+                access_mac_address="a:b:c:d",
+                access_mtu_size=self.access_interface_mtu_size,
+                core_interface_name=self.core_interface_name,
+                core_ip=self.core_ip,
+                core_gateway_ip=self.core_gateway_ip,
+                core_mtu_size=self.core_interface_mtu_size,
+                gnb_subnet=self.gnb_subnet,
+            )
+
+    def test_given_upf_mode_is_dpdk_and_core_mac_address_is_not_set_when_upfnetwork_instantiated_then_value_error_is_raised(  # noqa: E501
+        self,
+    ):
+        with pytest.raises(ValueError, match="Core network interface MAC address is empty"):
+            UPFNetwork(
+                upf_mode=UpfMode.dpdk,
+                access_interface_name=self.access_interface_name,
+                access_ip=self.access_ip,
+                access_gateway_ip=self.access_gateway_ip,
+                access_mac_address="a:b:c:d",
+                access_pci_address="whatever",
+                access_mtu_size=self.access_interface_mtu_size,
+                core_interface_name=self.core_interface_name,
+                core_ip=self.core_ip,
+                core_gateway_ip=self.core_gateway_ip,
+                core_mtu_size=self.core_interface_mtu_size,
+                gnb_subnet=self.gnb_subnet,
+            )
+
+    def test_given_upf_mode_is_dpdk_and_core_pci_address_is_not_set_when_upfnetwork_instantiated_then_value_error_is_raised(  # noqa: E501
+        self,
+    ):
+        with pytest.raises(ValueError, match="Core network interface PCI address is empty"):
+            UPFNetwork(
+                upf_mode=UpfMode.dpdk,
+                access_interface_name=self.access_interface_name,
+                access_ip=self.access_ip,
+                access_gateway_ip=self.access_gateway_ip,
+                access_mac_address="a:b:c:d",
+                access_pci_address="whatever",
+                access_mtu_size=self.access_interface_mtu_size,
+                core_interface_name=self.core_interface_name,
+                core_ip=self.core_ip,
+                core_gateway_ip=self.core_gateway_ip,
+                core_mac_address="a:b:c:d",
+                core_mtu_size=self.core_interface_mtu_size,
+                gnb_subnet=self.gnb_subnet,
+            )
+
+    def test_given_upf_mode_is_dpdk_and_access_interface_exists_when_clean_configuration_then_access_interface_is_deleted(  # noqa: E501
+        self,
+    ):
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.name = self.access_interface_name
+        mock_access_interface_instance.mac_address = "access mac"
+        mock_access_interface_instance.alias = "access pci"
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.name = self.core_interface_name
+        mock_core_interface_instance.mac_address = "core mac"
+        mock_core_interface_instance.alias = "core pci"
+
+        self.mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+
+        upf_network = UPFNetwork(
+            upf_mode=UpfMode.dpdk,
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mac_address="access mac",
+            access_pci_address="access pci",
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mac_address="core mac",
+            core_pci_address="core pci",
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.clean_configuration()
+
+        mock_access_interface_instance.delete.assert_called_once()
+
+    def test_given_upf_mode_is_dpdk_and_access_interface_doesnt_exist_when_clean_configuration_then_access_interface_is_deleted(  # noqa: E501
+        self,
+    ):
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.name = self.access_interface_name
+
+        upf_network = UPFNetwork(
+            upf_mode=UpfMode.dpdk,
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mac_address="access mac",
+            access_pci_address="access pci",
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mac_address="core mac",
+            core_pci_address="core pci",
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.clean_configuration()
+
+        mock_access_interface_instance.delete.assert_not_called()
+
+    def test_given_upf_mode_is_dpdk_and_core_interface_exists_when_clean_configuration_then_core_interface_is_deleted(  # noqa: E501
+        self,
+    ):
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.name = self.access_interface_name
+        mock_access_interface_instance.mac_address = "access mac"
+        mock_access_interface_instance.alias = "access pci"
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.name = self.core_interface_name
+        mock_core_interface_instance.mac_address = "core mac"
+        mock_core_interface_instance.alias = "core pci"
+
+        self.mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+
+        upf_network = UPFNetwork(
+            upf_mode=UpfMode.dpdk,
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mac_address="access mac",
+            access_pci_address="access pci",
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mac_address="core mac",
+            core_pci_address="core pci",
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.clean_configuration()
+
+        mock_core_interface_instance.delete.assert_called_once()
+
+    def test_given_upf_mode_is_dpdk_and_core_interface_doesnt_exist_when_clean_configuration_then_core_interface_is_deleted(  # noqa: E501
+        self,
+    ):
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.name = self.core_interface_name
+
+        upf_network = UPFNetwork(
+            upf_mode=UpfMode.dpdk,
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mac_address="access mac",
+            access_pci_address="access pci",
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mac_address="core mac",
+            core_pci_address="core pci",
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.clean_configuration()
+
+        mock_core_interface_instance.delete.assert_not_called()
+
+    def test_given_upf_mode_is_af_packet_when_clean_configuration_then_access_interface_is_not_deleted(  # noqa: E501
+        self,
+    ):
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.name = self.access_interface_name
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.name = self.core_interface_name
+
+        self.mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+
+        upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.clean_configuration()
+
+        mock_access_interface_instance.delete.assert_not_called()
+
+    def test_given_upf_mode_is_af_packet_when_clean_configuration_then_core_interface_is_not_deleted(  # noqa: E501
+        self,
+    ):
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.name = self.access_interface_name
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.name = self.core_interface_name
+
+        self.mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+
+        upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.clean_configuration()
+
+        mock_core_interface_instance.delete.assert_not_called()
+
+    def test_given_upf_in_dpdk_mode_and_access_mac_address_not_set_when_configure_then_access_mac_address_is_set(  # noqa: E501
+        self,
+    ):
+        test_access_mac_address = "aa:bb:cc:dd"
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.name = self.access_interface_name
+        mock_access_interface_instance.mac_address_is_set.return_value = False
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.name = self.core_interface_name
+        self.mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        upf_network = UPFNetwork(
+            upf_mode=UpfMode.dpdk,
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mac_address=test_access_mac_address,
+            access_pci_address="whatever",
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mac_address="whatever",
+            core_pci_address="whatever",
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.configure()
+
+        mock_access_interface_instance.set_mac_address.assert_called_once()
+
+    def test_given_upf_in_dpdk_mode_and_access_mac_address_is_set_when_configure_then_access_mac_address_is_not_set(  # noqa: E501
+            self,
+    ):
+        test_access_mac_address = "aa:bb:cc:dd"
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.name = self.access_interface_name
+        mock_access_interface_instance.mac_address_is_set.return_value = True
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.name = self.core_interface_name
+        self.mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        upf_network = UPFNetwork(
+            upf_mode=UpfMode.dpdk,
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mac_address=test_access_mac_address,
+            access_pci_address="whatever",
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mac_address="whatever",
+            core_pci_address="whatever",
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.configure()
+
+        mock_access_interface_instance.set_mac_address.assert_not_called()
+
+    def test_given_upf_in_dpdk_mode_and_access_alias_not_set_when_configure_then_access_alias_is_set(  # noqa: E501
+        self,
+    ):
+        test_access_alias = "0000:01:00.0"
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.name = self.access_interface_name
+        mock_access_interface_instance.mac_address_is_set.return_value = True
+        mock_access_interface_instance.alias_is_set.return_value = False
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.name = self.core_interface_name
+        self.mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        upf_network = UPFNetwork(
+            upf_mode=UpfMode.dpdk,
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mac_address="whatever",
+            access_pci_address=test_access_alias,
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mac_address="whatever",
+            core_pci_address="whatever",
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.configure()
+
+        mock_access_interface_instance.set_alias.assert_called_once()
+
+    def test_given_upf_in_dpdk_mode_and_access_alias_is_set_when_configure_then_access_alias_is_not_set(  # noqa: E501
+        self,
+    ):
+        test_access_alias = "0000:01:00.0"
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.name = self.access_interface_name
+        mock_access_interface_instance.mac_address_is_set.return_value = True
+        mock_access_interface_instance.alias_is_set.return_value = True
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.name = self.core_interface_name
+        self.mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        upf_network = UPFNetwork(
+            upf_mode=UpfMode.dpdk,
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mac_address="whatever",
+            access_pci_address=test_access_alias,
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mac_address="whatever",
+            core_pci_address="whatever",
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.configure()
+
+        mock_access_interface_instance.set_alias.assert_not_called()
+
+    def test_given_upf_in_dpdk_mode_and_core_mac_address_not_set_when_configure_then_core_mac_address_is_set(  # noqa: E501
+        self,
+    ):
+        test_core_mac_address = "aa:bb:cc:dd"
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.name = self.access_interface_name
+        mock_access_interface_instance.mac_address_is_set.return_value = False
+        mock_access_interface_instance.alias_is_set.return_value = True
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.name = self.core_interface_name
+        mock_core_interface_instance.mac_address_is_set.return_value = False
+        self.mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        upf_network = UPFNetwork(
+            upf_mode=UpfMode.dpdk,
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mac_address="whatever",
+            access_pci_address="whatever",
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mac_address=test_core_mac_address,
+            core_pci_address="whatever",
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.configure()
+
+        mock_access_interface_instance.set_mac_address.assert_called_once()
+
+    def test_given_upf_in_dpdk_mode_and_core_mac_address_is_set_when_configure_then_access_mac_core_is_not_set(  # noqa: E501
+        self,
+    ):
+        test_core_mac_address = "aa:bb:cc:dd"
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.name = self.access_interface_name
+        mock_access_interface_instance.mac_address_is_set.return_value = True
+        mock_access_interface_instance.alias_is_set.return_value = True
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.name = self.core_interface_name
+        mock_core_interface_instance.mac_address_is_set.return_value = True
+        self.mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        upf_network = UPFNetwork(
+            upf_mode=UpfMode.dpdk,
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mac_address="whatever",
+            access_pci_address="whatever",
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mac_address=test_core_mac_address,
+            core_pci_address="whatever",
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.configure()
+
+        mock_core_interface_instance.set_mac_address.assert_not_called()
+
+    def test_given_upf_in_dpdk_mode_and_core_alias_not_set_when_configure_then_core_alias_is_set(
+        self,
+    ):
+        test_core_alias = "0000:01:00.0"
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.name = self.access_interface_name
+        mock_access_interface_instance.mac_address_is_set.return_value = True
+        mock_access_interface_instance.alias_is_set.return_value = False
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.name = self.core_interface_name
+        mock_core_interface_instance.mac_address_is_set.return_value = True
+        mock_core_interface_instance.alias_is_set.return_value = False
+        self.mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        upf_network = UPFNetwork(
+            upf_mode=UpfMode.dpdk,
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mac_address="whatever",
+            access_pci_address="whatever",
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mac_address="whatever",
+            core_pci_address=test_core_alias,
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.configure()
+
+        mock_core_interface_instance.set_alias.assert_called_once()
+
+    def test_given_upf_in_dpdk_mode_and_core_alias_is_set_when_configure_then_core_alias_is_not_set(  # noqa: E501
+            self,
+    ):
+        test_core_alias = "0000:01:00.0"
+        mock_access_interface_instance = MagicMock()
+        mock_access_interface_instance.is_valid.return_value = True
+        mock_access_interface_instance.name = self.access_interface_name
+        mock_access_interface_instance.mac_address_is_set.return_value = True
+        mock_access_interface_instance.alias_is_set.return_value = True
+        mock_core_interface_instance = MagicMock()
+        mock_core_interface_instance.is_valid.return_value = True
+        mock_core_interface_instance.name = self.core_interface_name
+        mock_core_interface_instance.mac_address_is_set.return_value = True
+        mock_core_interface_instance.alias_is_set_return_value = True
+        self.mock_network_interface.side_effect = [
+            mock_access_interface_instance,
+            mock_core_interface_instance,
+        ]
+        upf_network = UPFNetwork(
+            upf_mode=UpfMode.dpdk,
+            access_interface_name=self.access_interface_name,
+            access_ip=self.access_ip,
+            access_gateway_ip=self.access_gateway_ip,
+            access_mac_address="whatever",
+            access_pci_address="whatever",
+            access_mtu_size=self.access_interface_mtu_size,
+            core_interface_name=self.core_interface_name,
+            core_ip=self.core_ip,
+            core_gateway_ip=self.core_gateway_ip,
+            core_mac_address="whatever",
+            core_pci_address=test_core_alias,
+            core_mtu_size=self.core_interface_mtu_size,
+            gnb_subnet=self.gnb_subnet,
+        )
+
+        upf_network.configure()
+
+        mock_core_interface_instance.set_alias.assert_not_called()
 
     def test_given_interfaces_are_down_when_configure_then_bring_up_interface_is_called_for_both_interfaces(self):  # noqa: E501
         mock_access_interface_instance = MagicMock()
@@ -1208,6 +1829,7 @@ class TestUPFNetwork:
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
@@ -1240,6 +1862,7 @@ class TestUPFNetwork:
             mock_core_interface_instance,
         ]
         upf_network = UPFNetwork(
+            upf_mode=UpfMode.af_packet,
             access_interface_name=self.access_interface_name,
             access_ip=self.access_ip,
             access_gateway_ip=self.access_gateway_ip,
