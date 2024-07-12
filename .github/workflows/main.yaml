@@ -126,7 +126,7 @@ jobs:
         id: sanitize
         run: |
           echo sanitized=$(echo ${{ github.ref_name }} | sed 's/[/_.]/-/g' | sed "s/^/\//") >> $GITHUB_OUTPUT
-        if: ${{ github.ref_name }} != ""
+        if: ${{ github.ref_name != '' }}
 
       - name: Upload charm to Charmhub
         uses: canonical/charming-actions/upload-charm@e924d251d7b924767820049a2aa6244ed050b2aa
