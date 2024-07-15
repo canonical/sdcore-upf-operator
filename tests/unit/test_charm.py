@@ -2,6 +2,7 @@
 # See LICENSE file for licensing details.
 
 import json
+import logging
 from itertools import count
 from unittest.mock import MagicMock, call, patch
 
@@ -216,6 +217,50 @@ class TestCharm:
 
         assert self.harness.model.unit.status == ops.BlockedStatus(
             "The following configurations are not valid: ['gnb-subnet']"
+        )
+
+    @pytest.mark.parametrize(
+        "invalid_gnb_subnet_config",
+        ["192.168.0.1", "192.168.0.1/35", "555.555.555.555/24", "not ip"],
+    )
+    def test_given_gnb_subnet_config_is_invalid_when_config_changed_then_status_is_blocked(
+        self, invalid_gnb_subnet_config
+    ):
+        self.harness.update_config({"gnb-subnet": invalid_gnb_subnet_config})
+
+        self.harness.evaluate_status()
+
+        assert self.harness.model.unit.status == ops.BlockedStatus(
+            "The following configurations are not valid: ['gnb-subnet']"
+        )
+
+    @pytest.mark.parametrize(
+        "invalid_access_ip_config",
+        ["192.168.0.1", "192.168.0.1/35", "555.555.555.555/24", "not ip"],
+    )
+    def test_given_access_ip_config_is_invalid_when_config_changed_then_status_is_blocked(
+        self, invalid_access_ip_config
+    ):
+        self.harness.update_config({"access-ip": invalid_access_ip_config})
+
+        self.harness.evaluate_status()
+
+        assert self.harness.model.unit.status == ops.BlockedStatus(
+            "The following configurations are not valid: ['access-ip']"
+        )
+
+    @pytest.mark.parametrize(
+        "invalid_core_ip_config", ["192.168.0.1", "192.168.0.1/35", "555.555.555.555/24", "not ip"]
+    )
+    def test_given_core_ip_config_is_invalid_when_config_changed_then_status_is_blocked(
+        self, invalid_core_ip_config
+    ):
+        self.harness.update_config({"core-ip": invalid_core_ip_config})
+
+        self.harness.evaluate_status()
+
+        assert self.harness.model.unit.status == ops.BlockedStatus(
+            "The following configurations are not valid: ['core-ip']"
         )
 
     def test_given_network_interfaces_not_valid_when_config_changed_then_status_is_blocked(self):
@@ -505,6 +550,7 @@ class TestCharmInitialisation:
             }
         )
         self.harness.begin()
+        logging.error(self.harness.charm.config.items())
 
         self.harness.evaluate_status()
 
