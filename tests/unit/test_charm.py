@@ -12,7 +12,6 @@ import pytest
 from charm import SdcoreUpfCharm
 from charms.operator_libs_linux.v2.snap import SnapState
 from machine import ExecError
-from parameterized import parameterized
 
 TEST_PFCP_PORT = 1234
 
@@ -220,11 +219,14 @@ class TestCharm:
             "The following configurations are not valid: ['gnb-subnet']"
         )
 
-    @parameterized.expand(["192.168.0.1", "192.168.0.1/35", "555.555.555.555/24", "not ip"])
+    @pytest.mark.parametrize(
+        "invalid_gnb_subnet_config",
+        ["192.168.0.1", "192.168.0.1/35", "555.555.555.555/24", "not ip"],
+    )
     def test_given_gnb_subnet_config_is_invalid_when_config_changed_then_status_is_blocked(
-        self, invalid_core_ip_config
+        self, invalid_gnb_subnet_config
     ):
-        self.harness.update_config({"gnb-subnet": invalid_core_ip_config})
+        self.harness.update_config({"gnb-subnet": invalid_gnb_subnet_config})
 
         self.harness.evaluate_status()
 
@@ -232,11 +234,13 @@ class TestCharm:
             "The following configurations are not valid: ['gnb-subnet']"
         )
 
-    @parameterized.expand(["192.168.0.1", "192.168.0.1/35", "555.555.555.555/24", "not ip"])
+    @pytest.mark.parametrize(
+        "invalid_access_ip_config", ["192.168.0.1", "192.168.0.1/35", "555.555.555.555/24", "not ip"]
+    )
     def test_given_access_ip_config_is_invalid_when_config_changed_then_status_is_blocked(
-        self, invalid_core_ip_config
+        self, invalid_access_ip_config
     ):
-        self.harness.update_config({"access-ip": invalid_core_ip_config})
+        self.harness.update_config({"access-ip": invalid_access_ip_config})
 
         self.harness.evaluate_status()
 
@@ -244,7 +248,9 @@ class TestCharm:
             "The following configurations are not valid: ['access-ip']"
         )
 
-    @parameterized.expand(["192.168.0.1", "192.168.0.1/35", "555.555.555.555/24", "not ip"])
+    @pytest.mark.parametrize(
+        "invalid_core_ip_config", ["192.168.0.1", "192.168.0.1/35", "555.555.555.555/24", "not ip"]
+    )
     def test_given_core_ip_config_is_invalid_when_config_changed_then_status_is_blocked(
         self, invalid_core_ip_config
     ):
