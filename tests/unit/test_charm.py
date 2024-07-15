@@ -235,7 +235,8 @@ class TestCharm:
         )
 
     @pytest.mark.parametrize(
-        "invalid_access_ip_config", ["192.168.0.1", "192.168.0.1/35", "555.555.555.555/24", "not ip"]
+        "invalid_access_ip_config",
+        ["192.168.0.1", "192.168.0.1/35", "555.555.555.555/24", "not ip"],
     )
     def test_given_access_ip_config_is_invalid_when_config_changed_then_status_is_blocked(
         self, invalid_access_ip_config
