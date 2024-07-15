@@ -2,6 +2,7 @@
 # See LICENSE file for licensing details.
 
 import json
+import logging
 from itertools import count
 from unittest.mock import MagicMock, call, patch
 
@@ -216,6 +217,55 @@ class TestCharm:
 
         assert self.harness.model.unit.status == ops.BlockedStatus(
             "The following configurations are not valid: ['gnb-subnet']"
+        )
+
+    def test_given_gnbsubnet_config_is_not_cidr_when_config_changed_then_status_is_blocked(self):
+        self.harness.update_config({"gnb-subnet": "192.168.0.1"})
+
+        self.harness.evaluate_status()
+
+        assert self.harness.model.unit.status == ops.BlockedStatus(
+            "The following configurations are not valid: ['gnb-subnet']"
+        )
+
+    def test_given_access_ip_config_is_not_cidr_when_config_changed_then_status_is_blocked(self):
+        self.harness.update_config({"access-ip": "192.168.0.1"})
+
+        self.harness.evaluate_status()
+
+        assert self.harness.model.unit.status == ops.BlockedStatus(
+            "The following configurations are not valid: ['access-ip']"
+        )
+
+    def test_given_core_ip_config_is_not_cidr_when_config_changed_then_status_is_blocked(self):
+        self.harness.update_config({"core-ip": "192.168.0.1"})
+
+        self.harness.evaluate_status()
+
+        assert self.harness.model.unit.status == ops.BlockedStatus(
+            "The following configurations are not valid: ['core-ip']"
+        )
+
+    def test_given_core_ip_config_has_invalid_netmask_when_config_changed_then_status_is_blocked(
+        self
+    ):
+        self.harness.update_config({"core-ip": "192.168.0.1/35"})
+
+        self.harness.evaluate_status()
+
+        assert self.harness.model.unit.status == ops.BlockedStatus(
+            "The following configurations are not valid: ['core-ip']"
+        )
+
+    def test_given_core_ip_config_has_invalid_ip_when_config_changed_then_status_is_blocked(
+            self
+    ):
+        self.harness.update_config({"core-ip": "555.555.555.555/24"})
+
+        self.harness.evaluate_status()
+
+        assert self.harness.model.unit.status == ops.BlockedStatus(
+            "The following configurations are not valid: ['core-ip']"
         )
 
     def test_given_network_interfaces_not_valid_when_config_changed_then_status_is_blocked(self):
@@ -505,6 +555,7 @@ class TestCharmInitialisation:
             }
         )
         self.harness.begin()
+        logging.error(self.harness.charm.config.items())
 
         self.harness.evaluate_status()
 

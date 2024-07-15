@@ -6,7 +6,6 @@
 import dataclasses
 import logging
 from enum import Enum
-from ipaddress import ip_network
 from typing import Optional
 
 import ops
@@ -17,7 +16,7 @@ from pydantic import (  # pylint: disable=no-name-in-module,import-error
     ValidationError,
     validator,
 )
-from pydantic.networks import IPvAnyAddress, IPvAnyNetwork
+from pydantic.networks import IPvAnyAddress
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +48,8 @@ class UpfMode(str, Enum):
 class UpfConfig(BaseModel):  # pylint: disable=too-few-public-methods
     """Represent UPF operator builtin configuration values."""
 
+    CIDR_REGEX = "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)([/][0-3][0-2]?|[/][1-2][0-9]|[/][0-9])$"  # noqa: E501, W605
+
     class Config:
         """Represent config for Pydantic model."""
         alias_generator = to_kebab
@@ -56,35 +57,21 @@ class UpfConfig(BaseModel):  # pylint: disable=too-few-public-methods
 
     upf_mode: UpfMode = UpfMode.af_packet
     dnn: StrictStr
-    gnb_subnet: IPvAnyNetwork
+    gnb_subnet: str = Field(regex=CIDR_REGEX)
     access_interface_name: StrictStr
-    access_ip: str
+    access_ip: str = Field(regex=CIDR_REGEX)
     access_gateway_ip: IPvAnyAddress
     access_interface_mtu_size: int = Field(ge=1200, le=65535)
     access_interface_mac_address: Optional[str]
     access_interface_pci_address: Optional[str]
     core_interface_name: StrictStr
-    core_ip: str
+    core_ip: str = Field(regex=CIDR_REGEX)
     core_gateway_ip: IPvAnyAddress
     core_interface_mtu_size: int = Field(ge=1200, le=65535)
     core_interface_mac_address: Optional[str]
     core_interface_pci_address: Optional[str]
     external_upf_hostname: Optional[StrictStr]
     enable_hw_checksum: bool
-
-    @validator("gnb_subnet")
-    @classmethod
-    def validate_ip_subnet(cls, value):
-        """Validate that IP network address is valid."""
-        ip_network(value, strict=True)
-        return value
-
-    @validator("access_ip", "core_ip")
-    @classmethod
-    def validate_ip_network_address(cls, value: str) -> str:
-        """Validate that IP network address is valid."""
-        ip_network(value, strict=False)
-        return value
 
     @validator("access_interface_mac_address", always=True)
     @classmethod
@@ -135,15 +122,15 @@ class CharmConfig:
 
     upf_mode: UpfMode
     dnn: StrictStr
-    gnb_subnet: IPvAnyNetwork
+    gnb_subnet: str
     access_interface_name: StrictStr
-    access_ip: StrictStr
+    access_ip: str
     access_gateway_ip: IPvAnyAddress
     access_interface_mtu_size: int
     access_interface_mac_address: Optional[StrictStr]
     access_interface_pci_address: Optional[StrictStr]
     core_interface_name: StrictStr
-    core_ip: StrictStr
+    core_ip: str
     core_gateway_ip: IPvAnyAddress
     core_interface_mtu_size: int
     core_interface_mac_address: Optional[StrictStr]
