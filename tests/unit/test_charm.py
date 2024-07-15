@@ -4,6 +4,7 @@
 import json
 import logging
 from itertools import count
+from parameterized import parameterized
 from unittest.mock import MagicMock, call, patch
 
 import ops
@@ -219,8 +220,11 @@ class TestCharm:
             "The following configurations are not valid: ['gnb-subnet']"
         )
 
-    def test_given_gnbsubnet_config_is_not_cidr_when_config_changed_then_status_is_blocked(self):
-        self.harness.update_config({"gnb-subnet": "192.168.0.1"})
+    @parameterized.expand(["192.168.0.1", "192.168.0.1/35", "555.555.555.555/24", "not ip"])
+    def test_given_gnb_subnet_config_is_invalid_when_config_changed_then_status_is_blocked(
+        self, invalid_core_ip_config
+    ):
+        self.harness.update_config({"gnb-subnet": invalid_core_ip_config})
 
         self.harness.evaluate_status()
 
@@ -228,8 +232,11 @@ class TestCharm:
             "The following configurations are not valid: ['gnb-subnet']"
         )
 
-    def test_given_access_ip_config_is_not_cidr_when_config_changed_then_status_is_blocked(self):
-        self.harness.update_config({"access-ip": "192.168.0.1"})
+    @parameterized.expand(["192.168.0.1", "192.168.0.1/35", "555.555.555.555/24", "not ip"])
+    def test_given_access_ip_config_is_invalid_when_config_changed_then_status_is_blocked(
+        self, invalid_core_ip_config
+    ):
+        self.harness.update_config({"access-ip": invalid_core_ip_config})
 
         self.harness.evaluate_status()
 
@@ -237,30 +244,11 @@ class TestCharm:
             "The following configurations are not valid: ['access-ip']"
         )
 
-    def test_given_core_ip_config_is_not_cidr_when_config_changed_then_status_is_blocked(self):
-        self.harness.update_config({"core-ip": "192.168.0.1"})
-
-        self.harness.evaluate_status()
-
-        assert self.harness.model.unit.status == ops.BlockedStatus(
-            "The following configurations are not valid: ['core-ip']"
-        )
-
-    def test_given_core_ip_config_has_invalid_netmask_when_config_changed_then_status_is_blocked(
-        self
+    @parameterized.expand(["192.168.0.1", "192.168.0.1/35", "555.555.555.555/24", "not ip"])
+    def test_given_core_ip_config_is_invalid_when_config_changed_then_status_is_blocked(
+        self, invalid_core_ip_config
     ):
-        self.harness.update_config({"core-ip": "192.168.0.1/35"})
-
-        self.harness.evaluate_status()
-
-        assert self.harness.model.unit.status == ops.BlockedStatus(
-            "The following configurations are not valid: ['core-ip']"
-        )
-
-    def test_given_core_ip_config_has_invalid_ip_when_config_changed_then_status_is_blocked(
-            self
-    ):
-        self.harness.update_config({"core-ip": "555.555.555.555/24"})
+        self.harness.update_config({"core-ip": invalid_core_ip_config})
 
         self.harness.evaluate_status()
 
