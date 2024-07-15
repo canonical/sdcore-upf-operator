@@ -4,7 +4,6 @@
 import json
 import logging
 from itertools import count
-from parameterized import parameterized
 from unittest.mock import MagicMock, call, patch
 
 import ops
@@ -13,6 +12,7 @@ import pytest
 from charm import SdcoreUpfCharm
 from charms.operator_libs_linux.v2.snap import SnapState
 from machine import ExecError
+from parameterized import parameterized
 
 TEST_PFCP_PORT = 1234
 
