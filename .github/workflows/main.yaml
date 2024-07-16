@@ -81,7 +81,7 @@ jobs:
         run: sudo snap install charmcraft --classic --channel=edge
 
       - name: Upload charm to Charmhub
-        uses: canonical/charming-actions/upload-charm@e924d251d7b924767820049a2aa6244ed050b2aa
+        uses: canonical/charming-actions/upload-charm@46fe0c6d63324b5f74ce0e65d6ab47051953cc48
         with:
           built-charm-path: ${{ steps.charm-path.outputs.charm_path }}
           credentials: "${{ secrets.CHARMCRAFT_AUTH }}"
@@ -129,7 +129,7 @@ jobs:
         if: ${{ github.ref_name != '' }}
 
       - name: Upload charm to Charmhub
-        uses: canonical/charming-actions/upload-charm@e924d251d7b924767820049a2aa6244ed050b2aa
+        uses: canonical/charming-actions/upload-charm@46fe0c6d63324b5f74ce0e65d6ab47051953cc48
         with:
           built-charm-path: ${{ steps.charm-path.outputs.charm_path }}
           credentials: "${{ secrets.CHARMCRAFT_AUTH }}"
