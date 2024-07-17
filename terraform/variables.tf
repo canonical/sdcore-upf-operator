@@ -22,7 +22,7 @@ variable "channel" {
 variable "base" {
   description = "The version of Ubuntu on the UPF host server. Currently supported values are `ubuntu@22.04` and `ubuntu@24.04`."
   type        = string
-  default     = "ubuntu@22.04"
+  default     = "ubuntu@24.04"
 }
 
 variable "config" {

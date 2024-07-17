@@ -23,9 +23,13 @@ depending on the deployment architecture.
 
 ### Pre-requisites
 
-- A host with a CPU supporting AVX2 and RDRAND instructions (Intel Haswell, AMD Excavator or equivalent)
-- Juju controller bootstrapped to a LXD cluster
-- A Juju machine representing the host that has been added to a model
+- A UPF host which meets or exceeds below requirements:
+  - Ubuntu 24.04
+  - CPU supporting AVX2 and RDRAND and PDPE1GB instructions (Intel Haswell, AMD Excavator or equivalent)
+- Juju host
+  - Juju>=3.4
+  - Cloud of type `manual` created
+  - UPF host machine added to Juju model
 - Terraform
 
 ### Deploying UPF with Terraform
