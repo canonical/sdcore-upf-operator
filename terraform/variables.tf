@@ -19,6 +19,12 @@ variable "channel" {
   default     = "1.4/edge"
 }
 
+variable "base" {
+  description = "The version of Ubuntu on the UPF host server. Currently supported values are `ubuntu@22.04` and `ubuntu@24.04`."
+  type        = string
+  default     = "ubuntu@24.04"
+}
+
 variable "config" {
   description = "Application config. Details about available options can be found at https://charmhub.io/sdcore-upf/configure."
   type        = map(string)
