@@ -25,7 +25,7 @@ depending on the deployment architecture.
 
 - A UPF host which meets or exceeds below requirements:
   - Ubuntu 24.04
-  - CPU supporting AVX2 and RDRAND and PDPE1GB instructions (Intel Haswell, AMD Excavator or equivalent)
+  - CPU supporting AVX2 and RDRAND instructions (Intel Haswell, AMD Excavator or equivalent)
 - Juju host
   - Juju>=3.4
   - Cloud of type `manual` created
