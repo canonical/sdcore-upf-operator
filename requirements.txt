@@ -4,7 +4,7 @@
 #
 #    pip-compile
 #
-cosl==0.0.12
+cosl==0.0.13
     # via -r requirements.in
 jinja2==3.1.4
     # via -r requirements.in
@@ -15,7 +15,9 @@ ops==2.14.1
     #   -r requirements.in
     #   cosl
 pydantic==1.10.17
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   cosl
 pyroute2==0.7.12
     # via -r requirements.in
 python-iptables==1.0.1
