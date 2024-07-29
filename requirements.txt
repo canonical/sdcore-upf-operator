@@ -4,13 +4,13 @@
 #
 #    pip-compile
 #
-cosl==0.0.13
+cosl==0.0.16
     # via -r requirements.in
 jinja2==3.1.4
     # via -r requirements.in
 markupsafe==2.1.5
     # via jinja2
-ops==2.14.1
+ops==2.15.0
     # via
     #   -r requirements.in
     #   cosl
