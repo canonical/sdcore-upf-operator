@@ -4,7 +4,7 @@
 #
 #    pip-compile
 #
-cosl==0.0.13
+cosl==0.0.17
     # via -r requirements.in
 jinja2==3.1.4
     # via -r requirements.in
