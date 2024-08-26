@@ -4,7 +4,7 @@
 #
 #    pip-compile
 #
-cosl==0.0.22
+cosl==0.0.23
     # via -r requirements.in
 jinja2==3.1.4
     # via -r requirements.in
@@ -14,7 +14,7 @@ ops==2.15.0
     # via
     #   -r requirements.in
     #   cosl
-pydantic==1.10.17
+pydantic==1.10.18
     # via
     #   -r requirements.in
     #   cosl
