@@ -78,7 +78,6 @@ class MockInterfaces:
 
 
 class MockRoute:
-
     def __init__(
         self, destination_network: str = "", gateway: str = "", metric: int = 0, oif: int = 0
     ):
@@ -107,7 +106,6 @@ class MockRoute:
 
 
 class MockIPRoute:
-
     def __init__(self, routes: List[MockRoute]):
         self.routes = routes
         self.route = MagicMock()
@@ -120,7 +118,6 @@ class MockIPRoute:
 
 
 class MockNDB:
-
     def __init__(self):
         self.interfaces = {
             "eth0": None,
@@ -186,7 +183,9 @@ class TestNetworkInterface:
         )
         assert self.network_interface.interface_is_up()
 
-    def test_given_interface_doesnt_exist_when_get_interface_ip_address_then_empty_string_is_returned(self):  # noqa: E501
+    def test_given_interface_doesnt_exist_when_get_interface_ip_address_then_empty_string_is_returned(  # noqa: E501
+        self,
+    ):
         self.network_interface.network_db.interfaces = MockInterfaces(interfaces=[])
 
         address = self.network_interface.get_ip_address()
@@ -198,7 +197,9 @@ class TestNetworkInterface:
 
         assert self.network_interface.interface_is_up() is False
 
-    def test_given_interface_doesnt_have_ipv4_address_when_get_interface_ip_address_then_empty_string_is_returned(self):  # noqa: E501
+    def test_given_interface_doesnt_have_ipv4_address_when_get_interface_ip_address_then_empty_string_is_returned(  # noqa: E501
+        self,
+    ):
         self.network_interface.network_db.interfaces = MockInterfaces(
             interfaces=[
                 MockInterface(
@@ -215,10 +216,11 @@ class TestNetworkInterface:
     def test_given_interface_exists_when_get_index_then_index_is_returned(self):
         expected_interface_index = 0
         self.network_interface.network_db.interfaces = MockInterfaces(
-            interfaces=[MockInterface(
-                ipv4_address=self.interface_ipv4_address,
-                name=self.network_interface_name
-            )]
+            interfaces=[
+                MockInterface(
+                    ipv4_address=self.interface_ipv4_address, name=self.network_interface_name
+                )
+            ]
         )
 
         index = self.network_interface.get_index()
@@ -234,10 +236,11 @@ class TestNetworkInterface:
 
     def test_given_interface_exists_when_exists_then_true_is_returned(self):
         self.network_interface.network_db.interfaces = MockInterfaces(
-            interfaces=[MockInterface(
-                ipv4_address=self.interface_ipv4_address,
-                name=self.network_interface_name
-            )]
+            interfaces=[
+                MockInterface(
+                    ipv4_address=self.interface_ipv4_address, name=self.network_interface_name
+                )
+            ]
         )
 
         exists = self.network_interface.exists()
@@ -260,10 +263,11 @@ class TestNetworkInterface:
 
     def test_given_correct_address_when_addresses_are_set_then_true_is_returned(self):
         self.network_interface.network_db.interfaces = MockInterfaces(
-            interfaces=[MockInterface(
-                ipv4_address=self.interface_ipv4_address,
-                name=self.network_interface_name
-            )]
+            interfaces=[
+                MockInterface(
+                    ipv4_address=self.interface_ipv4_address, name=self.network_interface_name
+                )
+            ]
         )
 
         addresses_are_set = self.network_interface.addresses_are_set()
@@ -272,10 +276,7 @@ class TestNetworkInterface:
 
     def test_given_incorrect_address_when_addresses_are_set_then_false_is_returned(self):
         self.network_interface.network_db.interfaces = MockInterfaces(
-            interfaces=[MockInterface(
-                ipv4_address="2.3.4.5/30",
-                name=self.network_interface_name
-            )]
+            interfaces=[MockInterface(ipv4_address="2.3.4.5/30", name=self.network_interface_name)]
         )
 
         addresses_are_set = self.network_interface.addresses_are_set()
@@ -284,10 +285,11 @@ class TestNetworkInterface:
 
     def test_given_correct_mtu_size_when_mtu_size_is_set_then_true_is_returned(self):
         self.network_interface.network_db.interfaces = MockInterfaces(
-            interfaces=[MockInterface(
-                ipv4_address=self.interface_ipv4_address,
-                name=self.network_interface_name
-            )]
+            interfaces=[
+                MockInterface(
+                    ipv4_address=self.interface_ipv4_address, name=self.network_interface_name
+                )
+            ]
         )
 
         mtu_size_is_set = self.network_interface.mtu_size_is_set()
@@ -296,11 +298,13 @@ class TestNetworkInterface:
 
     def test_given_incorrect_mtu_size_when_mtu_size_is_set_then_true_is_returned(self):
         self.network_interface.network_db.interfaces = MockInterfaces(
-            interfaces=[MockInterface(
-                ipv4_address="2.3.4.5/30",
-                name=self.network_interface_name,
-                mtu_size=self.interface_mtu_size,
-            )]
+            interfaces=[
+                MockInterface(
+                    ipv4_address="2.3.4.5/30",
+                    name=self.network_interface_name,
+                    mtu_size=self.interface_mtu_size,
+                )
+            ]
         )
 
         mtu_size_is_set = self.network_interface.mtu_size_is_set()
@@ -311,11 +315,13 @@ class TestNetworkInterface:
         self,
     ):
         self.network_interface.network_db.interfaces = MockInterfaces(
-            interfaces=[MockInterface(
-                ipv4_address=self.interface_ipv4_address,
-                name=self.network_interface_name,
-                mac_address="wrong mac",
-            )]
+            interfaces=[
+                MockInterface(
+                    ipv4_address=self.interface_ipv4_address,
+                    name=self.network_interface_name,
+                    mac_address="wrong mac",
+                )
+            ]
         )
 
         mac_address_is_set = self.network_interface.mac_address_is_set()
@@ -326,11 +332,13 @@ class TestNetworkInterface:
         self,
     ):
         self.network_interface.network_db.interfaces = MockInterfaces(
-            interfaces=[MockInterface(
-                ipv4_address=self.interface_ipv4_address,
-                name=self.network_interface_name,
-                mac_address=self.interface_mac_address,
-            )]
+            interfaces=[
+                MockInterface(
+                    ipv4_address=self.interface_ipv4_address,
+                    name=self.network_interface_name,
+                    mac_address=self.interface_mac_address,
+                )
+            ]
         )
 
         mac_address_is_set = self.network_interface.mac_address_is_set()
@@ -341,10 +349,12 @@ class TestNetworkInterface:
         self,
     ):
         self.network_interface.network_db.interfaces = MockInterfaces(
-            interfaces=[MockInterface(
-                ipv4_address=self.interface_ipv4_address,
-                name=self.network_interface_name,
-            )]
+            interfaces=[
+                MockInterface(
+                    ipv4_address=self.interface_ipv4_address,
+                    name=self.network_interface_name,
+                )
+            ]
         )
 
         alias_is_set = self.network_interface.alias_is_set()
@@ -352,14 +362,16 @@ class TestNetworkInterface:
         assert alias_is_set is False
 
     def test_given_interface_has_the_right_alias_set_when_alias_is_set_then_true_is_returned(
-            self,
+        self,
     ):
         self.network_interface.network_db.interfaces = MockInterfaces(
-            interfaces=[MockInterface(
-                ipv4_address=self.interface_ipv4_address,
-                name=self.network_interface_name,
-                alias=self.interface_alias,
-            )]
+            interfaces=[
+                MockInterface(
+                    ipv4_address=self.interface_ipv4_address,
+                    name=self.network_interface_name,
+                    alias=self.interface_alias,
+                )
+            ]
         )
 
         alias_is_set = self.network_interface.alias_is_set()
@@ -490,7 +502,9 @@ class TestUPFNetwork:
     def teardown() -> None:
         patch.stopall()
 
-    def test_given_invalid_access_interface_when_get_invalid_network_interfaces_then_interface_is_returned(self):  # noqa: E501
+    def test_given_invalid_access_interface_when_get_invalid_network_interfaces_then_interface_is_returned(  # noqa: E501
+        self,
+    ):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = False
         mock_access_interface_instance.name = self.access_interface_name
@@ -519,7 +533,9 @@ class TestUPFNetwork:
 
         assert invalid_network_interfaces == [self.access_interface_name]
 
-    def test_given_valid_interfaces_when_get_invalid_network_interfaces_then_empty_list_is_returned(self):  # noqa: E501
+    def test_given_valid_interfaces_when_get_invalid_network_interfaces_then_empty_list_is_returned(  # noqa: E501
+        self,
+    ):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_core_interface_instance = MagicMock()
@@ -1550,7 +1566,7 @@ class TestUPFNetwork:
         mock_access_interface_instance.set_mac_address.assert_called_once()
 
     def test_given_upf_in_dpdk_mode_and_access_mac_address_is_set_when_configure_then_access_mac_address_is_not_set(  # noqa: E501
-            self,
+        self,
     ):
         test_access_mac_address = "aa:bb:cc:dd"
         mock_access_interface_instance = MagicMock()
@@ -1775,7 +1791,7 @@ class TestUPFNetwork:
         mock_core_interface_instance.set_alias.assert_called_once()
 
     def test_given_upf_in_dpdk_mode_and_core_alias_is_set_when_configure_then_core_alias_is_not_set(  # noqa: E501
-            self,
+        self,
     ):
         test_core_alias = "0000:01:00.0"
         mock_access_interface_instance = MagicMock()
@@ -1813,7 +1829,9 @@ class TestUPFNetwork:
 
         mock_core_interface_instance.set_alias.assert_not_called()
 
-    def test_given_interfaces_are_down_when_configure_then_bring_up_interface_is_called_for_both_interfaces(self):  # noqa: E501
+    def test_given_interfaces_are_down_when_configure_then_bring_up_interface_is_called_for_both_interfaces(  # noqa: E501
+        self,
+    ):
         mock_access_interface_instance = MagicMock()
         mock_access_interface_instance.is_valid.return_value = True
         mock_access_interface_instance.addresses_are_set.return_value = True
