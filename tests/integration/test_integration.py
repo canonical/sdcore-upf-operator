@@ -165,7 +165,8 @@ class TestUPFMachineCharm:
         access_interface_name = charm_config["access-interface-name"]["value"]
         routes = await machine.ssh("ip route")
         gnb_route_pattern = "^%s via \d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3} dev %s proto static" % (  # noqa: E501, W605
-            gnb_subnet, access_interface_name
+            gnb_subnet,
+            access_interface_name,
         )
 
         assert any(re.match(gnb_route_pattern, route) for route in routes.splitlines())
@@ -180,8 +181,11 @@ class TestUPFMachineCharm:
         charm_config = await application.get_config()
         core_interface_name = charm_config["core-interface-name"]["value"]
         routes = await machine.ssh("ip route")
-        core_default_route_pattern = "^default via \d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3} dev %s proto static metric 110" % (  # noqa: E501, W605
-            core_interface_name,
+        core_default_route_pattern = (
+            r"^default via \d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3} dev %s proto static metric 110"
+            % (  # noqa: E501, W605
+                core_interface_name,
+            )
         )
 
         assert any(re.match(core_default_route_pattern, route) for route in routes.splitlines())
