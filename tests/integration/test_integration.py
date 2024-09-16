@@ -10,11 +10,12 @@ from pathlib import Path
 
 import pytest
 import yaml
-from charm import PFCP_PORT, UPF_CONFIG_FILE_NAME, UPF_CONFIG_PATH
 from juju.application import Application
 from juju.machine import Machine
 from juju.model import Model
 from pytest_operator.plugin import OpsTest
+
+from charm import PFCP_PORT, UPF_CONFIG_FILE_NAME, UPF_CONFIG_PATH
 
 logger = logging.getLogger(__name__)
 

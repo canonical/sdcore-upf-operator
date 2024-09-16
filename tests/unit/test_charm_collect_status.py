@@ -6,9 +6,9 @@ from unittest.mock import MagicMock
 
 import pytest
 import scenario
-from machine import ExecError
 from ops import ActiveStatus, BlockedStatus, WaitingStatus
 
+from machine import ExecError
 from tests.unit.fixtures import UPFUnitTestFixtures
 
 

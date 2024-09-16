@@ -9,8 +9,9 @@ from socket import AF_INET
 from typing import List, Optional
 
 import iptc
-from charm_config import UpfMode
 from pyroute2 import NDB, IPRoute, NetlinkError
+
+from charm_config import UpfMode
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +118,7 @@ class NetworkInterface:
             return
         logger.warning(
             "Setting alias for interface %s failed: Interface not found in the network database",
-            self.name
+            self.name,
         )
 
     def interface_is_up(self) -> bool:
@@ -151,8 +152,12 @@ class NetworkInterface:
             for ip in ip_addresses:
                 if ip.family == AF_INET:
                     if ip.address != self.ip_address:
-                        logger.info("Removing IP %s/%s from interface %s",
-                                    ip.address, ip.prefixlen, self.name)
+                        logger.info(
+                            "Removing IP %s/%s from interface %s",
+                            ip.address,
+                            ip.prefixlen,
+                            self.name,
+                        )
                         iface_record.del_ip(f"{ip.address}/{ip.prefixlen}").commit()
             # add requested IP if not already there
             if not self.get_ip_address():
@@ -185,15 +190,20 @@ class NetworkInterface:
         physical interface and tags it with the PCI address of the physical interface.
         """
         peer_interface_name = f"{self.name}-vdev"
-        (self.network_db.interfaces.create(  # type: ignore[reportAttributeAccessIssue]
-            ifname=self.name,
-            kind="veth",
-            peer={"ifname": peer_interface_name},
-        ).set(
-            state="up",
-            address=self.mac_address,
-            mtu=self.mtu_size,
-        ).add_ip(address=self.ip_address, prefixlen=24).commit())
+        (
+            self.network_db.interfaces.create(  # type: ignore[reportAttributeAccessIssue]
+                ifname=self.name,
+                kind="veth",
+                peer={"ifname": peer_interface_name},
+            )
+            .set(
+                state="up",
+                address=self.mac_address,
+                mtu=self.mtu_size,
+            )
+            .add_ip(address=self.ip_address, prefixlen=24)
+            .commit()
+        )
         self.network_db.reload()
         self.network_db.interfaces[self.name].set(ifalias=self.alias).commit()  # type: ignore[reportAttributeAccessIssue]  # noqa: E501
         self.network_db.interfaces[peer_interface_name].set(state="up").commit()  # type: ignore[reportAttributeAccessIssue]  # noqa: E501
@@ -209,10 +219,7 @@ class NetworkInterface:
     def delete(self) -> None:
         """Delete given network interface."""
         interface_index = self.get_index()
-        self.ip_route.link(
-            "del",
-            index=interface_index
-        )
+        self.ip_route.link("del", index=interface_index)
         logger.info("Network interface %s deleted", self.name)
         self.ip_route.close()
 
@@ -310,9 +317,7 @@ class Route:
                 oif=self.oif,
                 priority=self.metric,
             )
-            logger.info(
-                "Route to %s via %s deleted successfully", self.destination, self.gateway
-            )
+            logger.info("Route to %s via %s deleted successfully", self.destination, self.gateway)
         except NetlinkError as e:
             logger.error("Failed to create or replace the route: %s", e)
 
@@ -468,8 +473,7 @@ class UPFNetwork:
             and self.ip_tables_rule.exists()
         )
         interfaces_are_up = (
-            self.access_interface.interface_is_up()
-            and self.core_interface.interface_is_up()
+            self.access_interface.interface_is_up() and self.core_interface.interface_is_up()
         )
         return ifaces_are_configured and routes_are_configured and interfaces_are_up
 

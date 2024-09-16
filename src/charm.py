@@ -10,12 +10,10 @@ import time
 from typing import Optional
 
 import ops
-from charm_config import CharmConfig, CharmConfigInvalidError, UpfMode
 from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 from charms.operator_libs_linux.v2.snap import SnapCache, SnapError, SnapState
 from charms.sdcore_upf_k8s.v0.fiveg_n4 import N4Provides
 from jinja2 import Environment, FileSystemLoader
-from machine import ExecError, Machine
 from ops import (
     ActiveStatus,
     BlockedStatus,
@@ -23,6 +21,9 @@ from ops import (
     RemoveEvent,
     WaitingStatus,
 )
+
+from charm_config import CharmConfig, CharmConfigInvalidError, UpfMode
+from machine import ExecError, Machine
 from upf_network import UPFNetwork
 
 UPF_SNAP_NAME = "sdcore-upf"

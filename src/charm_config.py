@@ -52,6 +52,7 @@ class UpfConfig(BaseModel):  # pylint: disable=too-few-public-methods
 
     class Config:
         """Represent config for Pydantic model."""
+
         alias_generator = to_kebab
         use_enum_values = True
 
