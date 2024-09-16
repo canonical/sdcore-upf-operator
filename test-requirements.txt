@@ -81,8 +81,10 @@ ops==2.16.1
     # via
     #   -c requirements.txt
     #   ops-scenario
-ops-scenario==7.0.2
-    # via pytest-interface-tester
+ops-scenario==6.1.6
+    # via
+    #   -r test-requirements.in
+    #   pytest-interface-tester
 packaging==24.1
     # via
     #   juju
