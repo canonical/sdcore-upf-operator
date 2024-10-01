@@ -178,7 +178,7 @@ class TestCharmConfigure(UPFUnitTestFixtures):
         self.ctx.run(self.ctx.on.config_changed(), state_in)
 
         self.mock_n4_provides_publish_upf_information.assert_called_once_with(
-            relation_id=n4_relation.relation_id,
+            relation_id=n4_relation.id,
             upf_hostname="192.168.250.3",
             upf_n4_port=8805,
         )
