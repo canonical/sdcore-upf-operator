@@ -6,9 +6,9 @@ from unittest.mock import MagicMock
 
 import pytest
 import scenario
-from machine import ExecError
 from ops import ActiveStatus, BlockedStatus, WaitingStatus
 
+from machine import ExecError
 from tests.unit.fixtures import UPFUnitTestFixtures
 
 
@@ -20,7 +20,8 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
             leader=False,
         )
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
+
         assert state_out.unit_status == BlockedStatus("Scaling is not implemented for this charm")
 
     @pytest.mark.parametrize(
@@ -50,7 +51,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
             },
         )
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
         assert state_out.unit_status == BlockedStatus(
             f"The following configurations are not valid: ['{config_param}']"
@@ -64,7 +65,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
             config={"upf-mode": "dpdk"},
         )
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
         assert state_out.unit_status == BlockedStatus(
             "The following configurations are not valid: ['access-interface-mac-address', 'access-interface-pci-address', 'core-interface-mac-address', 'core-interface-pci-address']"  # noqa: E501
@@ -78,7 +79,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
             leader=True,
         )
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
         assert state_out.unit_status == BlockedStatus(
             "CPU is not compatible, see logs for more details"
@@ -95,7 +96,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
             leader=True,
         )
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
         assert state_out.unit_status == BlockedStatus(
             "Network interfaces are not valid: ['eth0', 'eth1']"
@@ -110,7 +111,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
         )
         self.mock_upf_network.is_configured.return_value = False
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
         assert state_out.unit_status == WaitingStatus("Waiting for network configuration")
 
@@ -124,7 +125,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
         )
         self.mock_upf_network.is_configured.return_value = True
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
         assert state_out.unit_status == WaitingStatus("Waiting for UPF configuration file")
 
@@ -144,7 +145,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
         )
         self.mock_upf_network.is_configured.return_value = True
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
         assert state_out.unit_status == WaitingStatus("Waiting for bessd service to start")
 
@@ -172,7 +173,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
             leader=True,
         )
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
         assert state_out.unit_status == WaitingStatus("Waiting for bessd gRPC service to start")
 
@@ -193,7 +194,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
             leader=True,
         )
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
         assert state_out.unit_status == WaitingStatus("Waiting for pcfp service to start")
 
@@ -215,7 +216,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
             leader=True,
         )
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
         assert state_out.unit_status == WaitingStatus("Waiting for routectl service to start")
 
@@ -237,6 +238,6 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
             leader=True,
         )
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
         assert state_out.unit_status == ActiveStatus()

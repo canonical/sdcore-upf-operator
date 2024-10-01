@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import scenario
+
 from charm import SdcoreUpfCharm
 
 

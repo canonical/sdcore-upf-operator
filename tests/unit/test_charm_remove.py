@@ -21,7 +21,7 @@ class TestCharmRemove(UPFUnitTestFixtures):
             leader=False,
         )
 
-        self.ctx.run("remove", state_in)
+        self.ctx.run(self.ctx.on.remove(), state_in)
 
         upf_snap.stop.assert_has_calls(
             [call(services=["bessd"]), call(services=["routectl"]), call(services=["pfcpiface"])]
