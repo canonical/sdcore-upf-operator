@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import iptc
 import pytest
+
 from charm_config import UpfMode
 from upf_network import IPTablesRule, NetworkInterface, Route, UPFNetwork
 

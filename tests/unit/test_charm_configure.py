@@ -28,7 +28,7 @@ class TestCharmConfigure(UPFUnitTestFixtures):
             },
         )
 
-        self.ctx.run("config_changed", state_in)
+        self.ctx.run(self.ctx.on.config_changed(), state_in)
 
         self.mock_upf_network.access_interface.create.assert_called_once()
         self.mock_upf_network.core_interface.create.assert_called_once()
@@ -40,7 +40,7 @@ class TestCharmConfigure(UPFUnitTestFixtures):
             leader=True,
         )
 
-        self.ctx.run("config_changed", state_in)
+        self.ctx.run(self.ctx.on.config_changed(), state_in)
 
         self.mock_upf_network.configure.assert_called_once()
 
@@ -59,7 +59,7 @@ class TestCharmConfigure(UPFUnitTestFixtures):
             leader=True,
         )
 
-        self.ctx.run("config_changed", state_in)
+        self.ctx.run(self.ctx.on.config_changed(), state_in)
 
         upf_snap.ensure.assert_called_once_with(
             SnapState.Latest,
@@ -85,7 +85,7 @@ class TestCharmConfigure(UPFUnitTestFixtures):
             leader=True,
         )
 
-        self.ctx.run("config_changed", state_in)
+        self.ctx.run(self.ctx.on.config_changed(), state_in)
 
         upf_snap.ensure.assert_not_called()
         upf_snap.hold.assert_not_called()
@@ -97,7 +97,7 @@ class TestCharmConfigure(UPFUnitTestFixtures):
             leader=True,
         )
 
-        self.ctx.run("config_changed", state_in)
+        self.ctx.run(self.ctx.on.config_changed(), state_in)
 
         _, kwargs = self.mock_machine.push.call_args
         assert kwargs["path"] == "/var/snap/sdcore-upf/common/upf.json"
@@ -115,7 +115,7 @@ class TestCharmConfigure(UPFUnitTestFixtures):
             leader=True,
         )
 
-        self.ctx.run("config_changed", state_in)
+        self.ctx.run(self.ctx.on.config_changed(), state_in)
 
         self.mock_machine.push.assert_not_called()
 
@@ -134,7 +134,7 @@ class TestCharmConfigure(UPFUnitTestFixtures):
             leader=True,
         )
 
-        self.ctx.run("config_changed", state_in)
+        self.ctx.run(self.ctx.on.config_changed(), state_in)
 
         upf_snap.start.assert_has_calls(
             calls=[
@@ -159,7 +159,7 @@ class TestCharmConfigure(UPFUnitTestFixtures):
             leader=True,
         )
 
-        self.ctx.run("config_changed", state_in)
+        self.ctx.run(self.ctx.on.config_changed(), state_in)
 
         upf_snap.start.assert_not_called()
 
@@ -175,10 +175,10 @@ class TestCharmConfigure(UPFUnitTestFixtures):
             relations=[n4_relation],
         )
 
-        self.ctx.run("config_changed", state_in)
+        self.ctx.run(self.ctx.on.config_changed(), state_in)
 
         self.mock_n4_provides_publish_upf_information.assert_called_once_with(
-            relation_id=n4_relation.relation_id,
+            relation_id=n4_relation.id,
             upf_hostname="192.168.250.3",
             upf_n4_port=8805,
         )
