@@ -4,8 +4,8 @@
 
 from unittest.mock import MagicMock, call
 
-import scenario
 from charms.operator_libs_linux.v2.snap import Snap
+from ops import testing
 
 from tests.unit.fixtures import UPFUnitTestFixtures
 
@@ -17,7 +17,7 @@ class TestCharmRemove(UPFUnitTestFixtures):
         upf_snap = MagicMock(spec=Snap)
         snap_cache = {"sdcore-upf": upf_snap}
         self.mock_snap_cache.return_value = snap_cache
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=False,
         )
 

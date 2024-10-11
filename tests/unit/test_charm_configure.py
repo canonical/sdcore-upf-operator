@@ -5,8 +5,8 @@
 import json
 from unittest.mock import MagicMock, call
 
-import scenario
 from charms.operator_libs_linux.v2.snap import SnapState
+from ops import testing
 
 from tests.unit.fixtures import UPFUnitTestFixtures
 
@@ -17,7 +17,7 @@ class TestCharmConfigure(UPFUnitTestFixtures):
     ):
         self.mock_upf_network.access_interface.exists.return_value = False
         self.mock_upf_network.core_interface.exists.return_value = False
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
             config={
                 "upf-mode": "dpdk",
@@ -36,7 +36,7 @@ class TestCharmConfigure(UPFUnitTestFixtures):
     def test_given_leader_when_configure_then_network_is_configured(
         self,
     ):
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
         )
 
@@ -55,7 +55,7 @@ class TestCharmConfigure(UPFUnitTestFixtures):
         }
         snap_cache = {"sdcore-upf": upf_snap}
         self.mock_snap_cache.return_value = snap_cache
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
         )
 
@@ -81,7 +81,7 @@ class TestCharmConfigure(UPFUnitTestFixtures):
         upf_snap.revision = "54"
         snap_cache = {"sdcore-upf": upf_snap}
         self.mock_snap_cache.return_value = snap_cache
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
         )
 
@@ -93,7 +93,7 @@ class TestCharmConfigure(UPFUnitTestFixtures):
     def test_given_config_file_not_pushed_when_configure_then_config_file_is_pushed(
         self,
     ):
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
         )
 
@@ -111,7 +111,7 @@ class TestCharmConfigure(UPFUnitTestFixtures):
         with open("tests/unit/expected_upf.json", "r") as f:
             expected_config = f.read()
         self.mock_machine.pull.return_value = expected_config
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
         )
 
@@ -130,7 +130,7 @@ class TestCharmConfigure(UPFUnitTestFixtures):
         }
         snap_cache = {"sdcore-upf": upf_snap}
         self.mock_snap_cache.return_value = snap_cache
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
         )
 
@@ -155,7 +155,7 @@ class TestCharmConfigure(UPFUnitTestFixtures):
         }
         snap_cache = {"sdcore-upf": upf_snap}
         self.mock_snap_cache.return_value = snap_cache
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
         )
 
@@ -166,11 +166,11 @@ class TestCharmConfigure(UPFUnitTestFixtures):
     def test_given_fiveg_n4_relation_when_configure_then_n4_information_published(
         self,
     ):
-        n4_relation = scenario.Relation(
+        n4_relation = testing.Relation(
             endpoint="fiveg_n4",
             interface="fiveg_n4",
         )
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
             relations=[n4_relation],
         )

@@ -5,8 +5,7 @@
 from unittest.mock import MagicMock
 
 import pytest
-import scenario
-from ops import ActiveStatus, BlockedStatus, WaitingStatus
+from ops import ActiveStatus, BlockedStatus, WaitingStatus, testing
 
 from machine import ExecError
 from tests.unit.fixtures import UPFUnitTestFixtures
@@ -16,7 +15,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
     def test_given_unit_not_leader_when_collect_unit_status_then_status_is_blocked(
         self,
     ):
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=False,
         )
 
@@ -44,7 +43,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
     def test_given_invalid_config_when_collect_unit_status_then_status_is_blocked(
         self, config_param, value
     ):
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
             config={
                 config_param: value,
@@ -60,7 +59,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
     def test_given_upf_mode_set_to_dpdk_and_hugepages_enabled_but_mac_addresses_of_access_and_core_interfaces_not_set_when_collect_unit_status_then_status_is_blocked(  # noqa: E501
         self,
     ):
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
             config={"upf-mode": "dpdk"},
         )
@@ -75,7 +74,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
         self,
     ):
         self.mock_process.wait_output.return_value = ("Flags: ssse3 fma cx16 rdrand", "")
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
         )
 
@@ -92,7 +91,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
             "eth0",
             "eth1",
         ]
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
         )
 
@@ -106,7 +105,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
         self,
     ):
         self.mock_upf_network.get_invalid_network_interfaces.return_value = []
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
         )
         self.mock_upf_network.is_configured.return_value = False
@@ -120,7 +119,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
     ):
         self.mock_upf_network.get_invalid_network_interfaces.return_value = []
         self.mock_machine.exists.return_value = False
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
         )
         self.mock_upf_network.is_configured.return_value = True
@@ -140,7 +139,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
         }
         snap_cache = {"sdcore-upf": upf_snap}
         self.mock_snap_cache.return_value = snap_cache
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
         )
         self.mock_upf_network.is_configured.return_value = True
@@ -169,7 +168,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
         }
         snap_cache = {"sdcore-upf": upf_snap}
         self.mock_snap_cache.return_value = snap_cache
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
         )
 
@@ -190,7 +189,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
         }
         snap_cache = {"sdcore-upf": upf_snap}
         self.mock_snap_cache.return_value = snap_cache
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
         )
 
@@ -212,7 +211,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
         }
         snap_cache = {"sdcore-upf": upf_snap}
         self.mock_snap_cache.return_value = snap_cache
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
         )
 
@@ -234,7 +233,7 @@ class TestCharmCollectUnitStatus(UPFUnitTestFixtures):
         }
         snap_cache = {"sdcore-upf": upf_snap}
         self.mock_snap_cache.return_value = snap_cache
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
         )
 
