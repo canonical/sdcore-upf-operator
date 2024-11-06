@@ -47,6 +47,7 @@ class SdcoreUpfCharm(ops.CharmBase):
         self._machine = Machine()
         self._cos_agent = COSAgentProvider(
             self,
+            refresh_events=[self.on.update_status],
             metrics_endpoints=[
                 {"path": "/metrics", "port": PROMETHEUS_PORT}
             ],
