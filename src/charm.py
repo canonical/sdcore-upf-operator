@@ -47,10 +47,8 @@ class SdcoreUpfCharm(ops.CharmBase):
         self._machine = Machine()
         self._cos_agent = COSAgentProvider(
             self,
-            scrape_configs=[
-                {
-                    "static_configs": [{"targets": [f"*:{PROMETHEUS_PORT}"]}],
-                }
+            metrics_endpoints=[
+                {"path": "/metrics", "port": PROMETHEUS_PORT}
             ],
         )
         try:
