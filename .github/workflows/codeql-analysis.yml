@@ -8,4 +8,4 @@ on:
 jobs:
   codeql:
     name: CodeQL Analysis
-    uses: canonical/sdcore-github-workflows/.github/workflows/codeql-analysis.yml@v2.1.0
+    uses: canonical/sdcore-github-workflows/.github/workflows/codeql-analysis.yml@v2.2.0
